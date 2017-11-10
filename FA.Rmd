@@ -1,0 +1,110 @@
+---
+title: "FA"
+author: "Anh Khoa Vo"
+date: "November 9, 2017"
+output: html_document
+---
+
+
+We have found that Albumin at week 4 is predictive of outcome - motor scores by week 52. However, I was wondering if a set of observed variables would have a better chance of predicting outcome than just one single variable. 
+
+Exploratory Factor Analysis (EFA) has been used to explore the possible underlying factor structure of a set of observed variables without imposing a preconcieved structure on the outcome. By performing EFA, the underlying factor structure is identified. 
+
+First, I upload the data set, and scale every variable in the dataset to reduce large variance between variable. I also remove two variables in the dataset since these two have the most missing data. (This led to several problems for my EFA later on) 
+
+```{r, include=FALSE}
+library(readxl)
+cfa_week0 <- read_excel("C:/Users/Anh Khoa/Desktop/cfa-week0.xlsx")
+View(cfa_week0)
+
+cfa_week0$DAN00 <- NULL
+cfa_week0$AMY00 <- NULL
+
+cfa1_week0 <- scale(cfa_week0, center = TRUE, scale = TRUE)
+cfa1_week0 <- data.frame(cfa1_week0)
+cfa1_week0
+
+```
+
+To identify the correct number of factors to pick for analysis, we can visualize it using scree plot. 
+
+```{r, echo=FALSE}
+library(psych)
+scree <- fa.parallel(cfa1_week0[-1:-3], fm = "ml", fa = "fa")
+scree
+```
+
+To visualize the number of factors and the variables inside each factor 
+
+```{r, echo=FALSE}
+fa <- fa(cfa1_week0[-1:-3], nfactors=6, rotate="oblimin", fm="ml")
+fa.diagram(fa)
+```
+
+Based from the graph, it is clear that we can have 5 factors! We drop one factor since it has only one variable: 
+
+```{r, include=FALSE}
+library(lavaan)
+model0 <- 'Factor 1 =~ HGB00 + HCT00 + RBC00 
+           Factor 2 =~ STP00 + ALB00 + CAB00 + CHO00
+           Factor 3 =~ AST00 + CK000 + ALT00 
+           Factor 4 =~ BUN00 + BC900 + BUA00 + P0400
+           Factor 5 =~ MCV00 + MCH00
+           Outcome =~ TLAMS52
+           Outcome ~ Factor 1 + Factor 2 + Factor 3  + Factor 4 + Factor 5'
+
+f1_week0 <- cfa(model0, data = cfa1_week0, std.lv=TRUE, missing = "fiml", na.action=na.omit)
+summary(f1_week0, standardized = TRUE, fit.measures = TRUE)
+```
+
+The output comes out with a summary table. However, I am not quite sure what the internal statistics behind this function. Therefore, I'd prefer to analyse the data by mysel. Anyway, this is the graph to visualize the previous summary table: 
+
+```{r, echo=FALSE}
+library(semPlot)
+semPaths(f1_week0,"std", whatLabels="std", intercepts=FALSE, style="lisrel", residuals = FALSE,
+         nCharNodes=0, 
+         nCharEdges=0,
+         curveAdjacent = TRUE,title=TRUE, layout="tree2",curvePivot=FALSE)
+```
+
+Now, to run the analysis, I need to compute the estimated values for latent variables!!!! 
+
+```{r, include=FALSE}
+p_week0 <- lavPredict(f1_week0)
+p_week0 <- as.data.frame(p_week0)
+p_week0
+```
+
+And now, In order to see which factor is predictive of outcome, I run a simple linear regression: 
+
+```{r,echo=FALSE}
+factor_lm <- function(x) {
+  f1 <- summary(lm(Outcome ~ Factor1, data = x))
+  f2 <- summary(lm(Outcome ~ Factor2, data = x))
+  f3 <- summary(lm(Outcome ~ Factor3, data = x))
+  f4 <- summary(lm(Outcome ~ Factor4, data = x))
+  f5 <- summary(lm(Outcome ~ Factor5, data = x))
+  return(list(f1,f2,f3,f4,f5))
+}
+
+factor_lm(p_week0)
+```
+
+
+BUT, we know 2 factors signifcantly correlated to outcome but, how about each variable maded up of that factor? Does each of them correlate stronger to outcome too??
+
+```{r, include=FALSE}
+cfa2_week0 <- cbind(cfa1_week0, p_week0)
+cfa2_week0
+
+```
+
+```{r, echo=FALSE}
+clusters <- c("Factor1", "Factor2", "Outcome","TLAMS52", "RBC00", "HGB00", "HCT00", "STP00", "ALB00", "CAB00", "CHO00")
+factors <- subset(cfa2_week0, select=(clusters))
+factors <- as.data.frame(cor(factors, use="pairwise.complete.obs"))
+Values <- as.data.frame(factors[1:3])
+Values
+
+```
+
