@@ -50,8 +50,7 @@ model0 <- 'Factor 1 =~ HGB00 + HCT00 + RBC00
            Factor 3 =~ AST00 + CK000 + ALT00 
            Factor 4 =~ BUN00 + BC900 + BUA00 + P0400
            Factor 5 =~ MCV00 + MCH00
-           Outcome =~ TLAMS52
-           Outcome ~ Factor 1 + Factor 2 + Factor 3  + Factor 4 + Factor 5'
+           TLAMS52 ~ Factor 1 + Factor 2 + Factor 3  + Factor 4 + Factor 5'
 
 f1_week0 <- cfa(model0, data = cfa1_week0, std.lv=TRUE, missing = "fiml", na.action=na.omit)
 summary(f1_week0, standardized = TRUE, fit.measures = TRUE)
@@ -79,15 +78,16 @@ And now, In order to see which factor is predictive of outcome, I run a simple l
 
 ```{r,echo=FALSE}
 factor_lm <- function(x) {
-  f1 <- summary(lm(Outcome ~ Factor1, data = x))
-  f2 <- summary(lm(Outcome ~ Factor2, data = x))
-  f3 <- summary(lm(Outcome ~ Factor3, data = x))
-  f4 <- summary(lm(Outcome ~ Factor4, data = x))
-  f5 <- summary(lm(Outcome ~ Factor5, data = x))
+  f1 <- summary(lm(TLAMS52 ~ Factor1, data = x))
+  f2 <- summary(lm(TLAMS52 ~ Factor2, data = x))
+  f3 <- summary(lm(TLAMS52 ~ Factor3, data = x))
+  f4 <- summary(lm(TLAMS52 ~ Factor4, data = x))
+  f5 <- summary(lm(TLAMS52 ~ Factor5, data = x))
   return(list(f1,f2,f3,f4,f5))
 }
-
-factor_lm(p_week0)
+cfa2_week0 <- cbind(cfa1_week0, p_week0)
+cfa2_week0
+factor_lm(cfa2_week0)
 ```
 
 
@@ -100,7 +100,7 @@ cfa2_week0
 ```
 
 ```{r, echo=FALSE}
-clusters <- c("Factor1", "Factor2", "Outcome","TLAMS52", "RBC00", "HGB00", "HCT00", "STP00", "ALB00", "CAB00", "CHO00")
+clusters <- c("Factor1", "Factor2","TLAMS52", "RBC00", "HGB00", "HCT00", "STP00", "ALB00", "CAB00", "CHO00")
 factors <- subset(cfa2_week0, select=(clusters))
 factors <- as.data.frame(cor(factors, use="pairwise.complete.obs"))
 Values <- as.data.frame(factors[1:3])
