@@ -1,9 +1,0 @@
----
-title: "EFA"
-author: "Anh Khoa Vo"
-date: "November 8, 2017"
-output: github_document
----
-
-
-Exploratory Factor Analysis to pick the number of factors 
