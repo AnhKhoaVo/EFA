@@ -37,22 +37,22 @@ scree
 To visualize the number of factors and the variables inside each factor 
 
 ```{r, echo=FALSE}
-fa <- fa(cfa1_week0[-1:-3], nfactors=6, rotate="oblimin", fm="ml")
+fa <- fa(cfa1_week0[-1:-3], nfactors=6, rotate="varimax", fm="ml")
 fa.diagram(fa)
 ```
 
-Based from the graph, it is clear that we can have 5 factors! We drop one factor since it has only one variable: 
 
-```{r, include=FALSE}
+
+```{r}
 library(lavaan)
 model0 <- 'Factor 1 =~ HGB00 + HCT00 + RBC00 
            Factor 2 =~ STP00 + ALB00 + CAB00 + CHO00
            Factor 3 =~ AST00 + CK000 + ALT00 
            Factor 4 =~ BUN00 + BC900 + BUA00 + P0400
            Factor 5 =~ MCV00 + MCH00
-           TLAMS52 ~ Factor 1 + Factor 2 + Factor 3  + Factor 4 + Factor 5'
+           TLAMS52 ~ Factor 1 + Factor 2 + Factor 3 + Factor 4 + Factor 5 + CHC00'
 
-f1_week0 <- cfa(model0, data = cfa1_week0, std.lv=TRUE, missing = "fiml", na.action=na.omit)
+f1_week0 <- sem(model0, data = cfa1_week0, std.lv=TRUE, na.action=na.omit, missing = "fiml")
 summary(f1_week0, standardized = TRUE, fit.measures = TRUE)
 ```
 
@@ -68,7 +68,7 @@ semPaths(f1_week0,"std", whatLabels="std", intercepts=FALSE, style="lisrel", res
 
 Now, to run the analysis, I need to compute the estimated values for latent variables!!!! 
 
-```{r, include=FALSE}
+```{r}
 p_week0 <- lavPredict(f1_week0)
 p_week0 <- as.data.frame(p_week0)
 p_week0
@@ -100,10 +100,10 @@ cfa2_week0
 ```
 
 ```{r, echo=FALSE}
-clusters <- c("Factor1", "Factor2","TLAMS52", "RBC00", "HGB00", "HCT00", "STP00", "ALB00", "CAB00", "CHO00")
+clusters <- c("Factor1", "Factor2", "TLAMS52", "RBC00", "HGB00", "HCT00", "STP00", "ALB00", "CAB00", "CHO00", "CHC00")
 factors <- subset(cfa2_week0, select=(clusters))
 factors <- as.data.frame(cor(factors, use="pairwise.complete.obs"))
-Values <- as.data.frame(factors[1:3])
+Values <- as.data.frame(factors[1:6])
 Values
 
 ```
