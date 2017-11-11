@@ -83,7 +83,8 @@ factor_lm <- function(x) {
   f3 <- summary(lm(TLAMS52 ~ Factor3, data = x))
   f4 <- summary(lm(TLAMS52 ~ Factor4, data = x))
   f5 <- summary(lm(TLAMS52 ~ Factor5, data = x))
-  return(list(f1,f2,f3,f4,f5))
+  f6 <- summary(lm(TLAMS52 ~ CHC00, data=x))
+  return(list(f1,f2,f3,f4,f5,f6))
 }
 cfa2_week0 <- cbind(cfa1_week0, p_week0)
 cfa2_week0
