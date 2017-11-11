@@ -2,7 +2,8 @@
 title: "FA"
 author: "Anh Khoa Vo"
 date: "November 9, 2017"
-output: html_document
+output:
+  html_document: default
 ---
 
 
@@ -12,7 +13,7 @@ Exploratory Factor Analysis (EFA) has been used to explore the possible underlyi
 
 First, I upload the data set, and scale every variable in the dataset to reduce large variance between variable. I also remove two variables in the dataset since these two have the most missing data. (This led to several problems for my EFA later on) 
 
-```{r}
+```{r, include=FALSE}
 library(readxl)
 cfa_week0 <- read_excel("C:/Users/Anh Khoa/Desktop/cfa-week0.xlsx")
 View(cfa_week0)
@@ -36,7 +37,7 @@ scree
 
 To visualize the number of factors and the variables inside each factor 
 
-```{r, echo=FALSE}
+```{r}
 fa <- fa(cfa1_week0[-1:-3], nfactors=6, rotate="varimax", fm="ml")
 fa.diagram(fa)
 ```
@@ -68,13 +69,18 @@ semPaths(f1_week0,"std", whatLabels="std", intercepts=FALSE, style="lisrel", res
 
 Now, to run the analysis, I need to compute the estimated values for latent variables!!!! 
 
-```{r}
+```{r, include=FALSE}
 p_week0 <- lavPredict(f1_week0)
 p_week0 <- as.data.frame(p_week0)
 p_week0
 ```
 
 And now, In order to see which factor is predictive of outcome, I run a simple linear regression: 
+```{r, include=FALSE}
+cfa2_week0 <- cbind(cfa1_week0, p_week0)
+cfa2_week0
+```
+
 
 ```{r}
 factor_lm <- function(x) {
@@ -86,8 +92,7 @@ factor_lm <- function(x) {
   f6 <- summary(lm(TLAMS52 ~ CHC00, data=x))
   return(list(f1,f2,f3,f4,f5,f6))
 }
-cfa2_week0 <- cbind(cfa1_week0, p_week0)
-cfa2_week0
+
 factor_lm(cfa2_week0)
 ```
 
