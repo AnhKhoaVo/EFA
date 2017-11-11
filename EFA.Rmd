@@ -2,8 +2,27 @@
 title: "EFA"
 author: "Anh Khoa Vo"
 date: "November 8, 2017"
-output: github_document
+output: html_document
 ---
 
+We have found that Albumin at week 4 is predictive of outcome - motor scores by week 52. However, I was wondering if a set of observed variables would have a better chance of predicting outcome than just one single variable. 
 
-Exploratory Factor Analysis to pick the number of factors 
+Exploratory Factor Analysis has been used to explore the possible underlying factor structure of a set of observed variables without imposing a preconcieved structure on the outcome. By performing EFA, the underlying factor structure is identified. 
+
+```{FA.R}
+cfa1_week0 <- scale(cfa_week0, center = TRUE, scale = TRUE)
+cfa1_week0 <- as.data.frame(cfa1_week0)
+
+cfa_week0$DAN00 <- NULL
+cfa_week0$AMY00 <- NULL
+
+library("psych")
+
+efa <-  function(x) {
+  scree <- fa.parallel(x[-1,-2], fm = "ml", fa = "fa")
+  fa <- fa.diagram(fa(x[-1, -2], nfactors=6, rotate="oblimin", fm="ml"))
+  return(list(scree, fa))
+}
+efa(cfa1_week0)
+```
+
