@@ -30,6 +30,8 @@ cfa1_week0
 To identify the correct number of factors to pick for analysis, we can visualize it using scree plot. 
 
 ```{r}
+library(psych)
+scree <- fa.parallel(cfa1_week0[-1:-3], fm = "ml", fa = "fa")
 scree
 ```
 
@@ -99,6 +101,7 @@ BUT, we know 2 factors signifcantly correlated to outcome but, how about each va
 
 
 ```{r}
+library(knitr)
 clusters <- c("Factor1", "Factor2", "TLAMS52", "RBC00", "HGB00", "HCT00", "STP00", "ALB00", "CAB00", "CHO00", "CHC00")
 factors <- subset(cfa2_week0, select=(clusters))
 factors <- as.data.frame(cor(factors, use="pairwise.complete.obs"))
