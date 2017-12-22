@@ -2,9 +2,10 @@
 title: "FA"
 author: "Anh Khoa Vo"
 date: "November 9, 2017"
-output:
-  html_document: default
+output: html_document
 ---
+
+
 
 We have found that Albumin at week 4 is predictive of outcome - motor scores by week 52. However, I was wondering if a set of observed variables would have a better chance of predicting outcome than just one single variable. 
 
@@ -194,7 +195,8 @@ list(summary(lm_week0_factor1), summary(lm_week0_factor2), summary(lm_week0_fact
 
 From the results output, it seems like factor 1 (lm_week0_factor1) is the only significant variable when holding other independent predictors constant. 
 
-#Model Selecion
+**Model Selecion**
+
 I am now interested in seeing if lm_week0_factors is significant comparing to model consisiting of only 3 significant factors and model consisting of only patients injury: 
 
 ```{r}
@@ -214,7 +216,8 @@ anova(lm_week0_factor1, lm_week0_inj)
 
 The anova results indicate there is a significant difference between these 2 models. Looking at the RSS, Model 1 seems to have a better fit than model 2. 
 
-#Variable Selection
+**Variable Selection**
+
 I am now interested in if all the variables in the previous Model 1 are relevant: 
 
 ```{r}
