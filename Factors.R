@@ -1050,11 +1050,16 @@ anova(glm_death, glm_death_reduced, test="Chisq")
 
 sjp.glm(glm_death_reduced)
 
-Factor3_Death <- ggplot(data= subset(Factors_Overtime_Death, !is.na(ASIMPC01_A)), aes(x=Death, y=Factor3_w0))+ 
+Factor3_Death <- ggplot(data= subset(Factors_Overtime_Death, !is.na(ASIMPC01_A)), aes(x=Death, y=Factor3_w0, fill = Death))+ 
   geom_boxplot() + 
   coord_cartesian(ylim=c(-0.85,2)) +
-  theme_bw() +
+  scale_fill_brewer(name="Death",
+                    labels=c("No", "Yes")) + 
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
   ggtitle("Factor 3 (Liver) Across ASI grades in Death") + 
+  ylab("Factor Liver") + 
   facet_grid(. ~ ASIMPC01_A, scales = "free_x") 
 
 ALT_Death <- ggplot(data= subset(Factors_Overtime_Death, !is.na(ASIMPC01_A)), aes(x=Death, y=ALT00))+ 
@@ -1080,11 +1085,16 @@ CK_Death <- ggplot(data= subset(Factors_Overtime_Death, !is.na(ASIMPC01_A)), aes
 
 multiplot(Factor3_Death, ALT_Death, AST_Death, CK_Death, cols = 2)
 
-Factor4_Death <- ggplot(data= subset(Factors_Overtime_Death, !is.na(ASIMPC01_A)), aes(x=Death, y=Factor4_w0))+ 
+Factor4_Death <- ggplot(data= subset(Factors_Overtime_Death, !is.na(ASIMPC01_A)), aes(x=Death, y=Factor4_w0, fill=Death))+ 
   geom_boxplot() + 
   coord_cartesian(ylim=c(-1,1.85)) + 
-  theme_bw() +
+  scale_fill_brewer(name="Death",
+                    labels=c("No", "Yes")) + 
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())+
   ggtitle("Factor 4 (Kidneys) Across ASI grades in Death") + 
+  ylab("Factor Kidneys") +
   facet_grid(. ~ ASIMPC01_A, scales = "free_x")
 
 BUN_Death <- ggplot(data= subset(Factors_Overtime_Death, !is.na(ASIMPC01_A)), aes(x=Death, y=BUN00))+ 
@@ -1110,6 +1120,7 @@ BUA_Death <- ggplot(data= subset(Factors_Overtime_Death, !is.na(ASIMPC01_A)), ae
 
 multiplot(Factor4_Death, BUN_Death, BC9_Death, BUA_Death, cols = 2)
 
+multiplot(Factor3_Death, Factor4_Death)
 #RBC drugs 
 RBC_drugs$RBC_Drug[is.na(RBC_drugs$RBC_Drug)] <- 0
 RBC_drugs$RBC_Drug <- as.factor(RBC_drugs$RBC_Drug)
