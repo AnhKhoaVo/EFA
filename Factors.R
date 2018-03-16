@@ -1494,11 +1494,19 @@ sjt.glm(glm_MR_factor1,  glm_MR_factor3, glm_MR_factor4, glm_MR_factor5, glm_MR_
                         "Factor RBC Indices", "Factor WBC", "Factor Others"),
         group.pred = FALSE)
 
-ggplot(data = subset(Factors_MR, !is.na(Marked_Recovery)), aes(x=Marked_Recovery, y=Factor1_w0_flipped))+
+#Palette
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+
+ggplot(data = subset(Factors_MR, !is.na(Marked_Recovery)), aes(x=Marked_Recovery, y=Factor1_w0_flipped, fill = Marked_Recovery))+
   geom_boxplot() +
+  scale_fill_brewer(name="Marked Recovery",
+                    labels=c("No", "Yes")) + 
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
   ggtitle("Factor 1 (Anemia) and Marked Recovery") +
-  ylab("Factor1 (Anemia)") +
-  theme_bw() + 
+  ylab("Factor 1 (Anemia)") +
   facet_grid(. ~ ASIMPC01_A, scales = "free_x")
 
 lm_week0_factor1_A <- lm(TLAMS52 ~  Factor1_w0 + SPLVL1 + AGE, ASIMPC01_A == "A", data = Factors_W0)
