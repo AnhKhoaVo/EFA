@@ -4,11 +4,13 @@ author: "Anh Khoa Vo"
 date: "November 9, 2017"
 output: html_document
 ---
+# Introduction
 
+Our lab has previously identified that Albumin at 4 weeks after SCI is postitively correlated with Motors Scores and Marked Recovery at week 52. However, this raises two points: 
 
+1. Considering the complex and multifactorial complications of SCI, it is logical to consider that a set of observed variables would have a better chance of predicting outcome than just one single variable. 
 
-We have found that Albumin at week 4 is predictive of outcome - motor scores by week 52. However, I was wondering if a set of observed variables would have a better chance of predicting outcome than just one single variable. 
-
+2. 4 weeks after SCI, Albumin is postively correlated with Motor Scores at week 52. It is then reasonable to question whether other variables are able to predict Motor Scores at earlier time point.
 
 Exploratory Factor Analysis (EFA) has been used to explore the possible underlying factor structure of a set of observed variables without imposing a preconcieved structure on the outcome. By performing EFA, the underlying factor structure is identified. 
 
@@ -22,8 +24,9 @@ View(cfa_week0)
 cfa_week0$DAN00 <- NULL
 cfa_week0$AMY00 <- NULL
 
-cfa1_week0 <- scale(cfa_week0, center = TRUE, scale = TRUE)
+cfa1_week0 <- scale(cfa_week0[-1:-3], center = TRUE, scale = TRUE)
 cfa1_week0 <- data.frame(cfa1_week0)
+cfa1_week0 <- cbind(cfa1_week0, MS52_raw)
 
 str(cfa1_week0)
 ```
@@ -32,18 +35,44 @@ To identify the correct number of factors to pick for analysis, we can visualize
 
 ```{r}
 library(psych)
-scree <- fa.parallel(cfa1_week0[-1:-3], fm = "ml", fa = "fa")
+scree <- fa.parallel(cfa1_week0[-37], fm = "ml", fa = "fa")
 scree
 ```
 
 To visualize the number of factors and the variables inside each factor 
+```{r}
+library(plyr)
+cfa_week0_renamed <- rename(cfa_week0, c("ALB00"="Abumin", "ALK00"="Alkaline Phosphatase", "AP100"= "Patient Time",
+																				 "AMY00"="Amylase", "BC900"="Creatinine", "BT00"="Bilirubin",
+																				 "BUA00"="Uric Acid", "BUN00"="Urea Nitrogen","CAB00"="Calcium", "CHC00"="Mean Corpuscular Hemoglobin %",
+																				 "CHO00"="Cholesterol", "CK000"="Creatine Phosphokinase", "CLB00"="Chloride",
+																				 "CO200"="CO2", "DAN00"="Neutrophil bands", "DBN00"="Neutrophil segmented",
+																				 "DDN00"="Lymphocytes", "DJN00"="monocytes", "DLN00"="Eosinophils",
+																				 "DNN00"="Basophils", "GLU00"="Glucose", "HCT00"="Hematocrit","HGB00"="Hemoglobin",
+																				 "KB00"="Potassium", "MCH00"= "Mean Corpuscular Hemoglobin (PG)",
+																				 "MCV00"="Mean Corpuscular Volume", "NAB00"="Sodium", "PLT00"="Platelet", 
+																				 "P0400"="Inorganic Phosphorus", "PT100"="Patient Time (Hematology)","RBC00"="Redd Blood Cells",
+																				 "AST00"="Aspartate Aminotransferase", "ALT00"="Alanine Aminotransferase",
+																				 "STP00"="Total Serum", "TRI00"="Triglycerides", "UCN00"="Urinalysis specific gravity",
+																				 "UEN00"="Urinalysis reaction pH", "WBC00"="White Blood Cells"))
+
+cfa_week0_renamed$`Neutrophil bands` <- NULL
+cfa_week0_renamed$Amylase <- NULL
+
+cfa1_week0_renamed <- scale(cfa_week0_renamed[-1:-3], center = TRUE, scale = TRUE)
+cfa1_week0_renamed <- data.frame(cfa1_week0_renamed)
+
+cfa1_week0_renamed <- cbind(cfa1_week0_renamed, MS52_raw)
+```
+
 
 ```{r}
-fa <- fa(cfa1_week0[-1:-3], nfactors=7, rotate="varimax", fm="ml")
-fa.diagram(fa, main = "Factor Analysis at week 0", cut = 0.4)
+fa <- fa(cfa1_week0_renamed[-37], nfactors=7, rotate="varimax", fm="ml")
+diagram <- fa.diagram(fa, main = "Factor Analysis at week 0", cut = 0.4, cex = 0.25, e.size = .1)
 
+pdf(file = "diagram.pdf", title = "diagram", paper = diagram)
 
-print(fa$loadings, cutoff = 0.5)
+print(fa$loadings, cutoff = 0.4)
 ```
 
 A second part of factor analysis is called Confirmatory Factor Analysis. Just like the name implies, this process is to confirm what we explored earlier. 
@@ -54,21 +83,37 @@ For the regression, we're interested in the motor scores at week 52:
 
 ```{r}
 library(lavaan)
-model0 <- 'Factor 1 =~ HGB00 + HCT00 + RBC00 
+model0_renamed <- 'Factor Anemia =~ Hemoglobin + Hematocrit + Redd.Blood.Cells
+           Factor Nutrition =~ Total.Serum + Abumin + Calcium + Cholesterol
+           Factor Liver =~ Creatine.Phosphokinase + Alanine.Aminotransferase + Aspartate.Aminotransferase
+           Factor Kidney =~ Urea.Nitrogen + Creatinine + Uric.Acid + Inorganic.Phosphorus
+           Factor RBC indices =~ Mean.Corpuscular.Volume + Mean.Corpuscular.Hemoglobin..PG.
+           Factor WBC =~ Lymphocytes + Neutrophil.segmented + monocytes
+           Mean.Corpuscular.Volume ~~ 0*Mean.Corpuscular.Volume
+           Aspartate.Aminotransferase ~~ 0*Aspartate.Aminotransferase
+           Lymphocytes ~~ 0*Lymphocytes'
+
+f1_week0 <- sem(model0_renamed, data = cfa1_week0_renamed, std.lv=TRUE, missing = "fiml")
+summary(f1_week0, standardized = TRUE, fit.measures = TRUE)
+
+```
+
+```{r}
+model0 <- 'Factor 1 =~ HGB00 + HCT00 + RBC00
            Factor 2 =~ STP00 + ALB00 + CAB00 + CHO00
            Factor 3 =~ CK000 + ALT00 + AST00
            Factor 4 =~ BUN00 + BC900 + BUA00 + P0400
            Factor 5 =~ MCV00 + MCH00
            Factor 6 =~ DDN00 + DBN00 + DJN00
-           AST00 ~~ 0*AST00
            MCV00 ~~ 0*MCV00
+           AST00 ~~ 0*AST00
            DDN00 ~~ 0*DDN00
            TLAMS52 ~ Factor 1 + Factor 2 + Factor 3 + Factor 4 + Factor 5 + Factor 6'
 
 f1_week0 <- sem(model0, data = cfa1_week0, std.lv=TRUE, missing = "fiml")
 summary(f1_week0, standardized = TRUE, fit.measures = TRUE)
-
 ```
+
 
 The output comes out with a summary table and visual graph 
 
@@ -86,6 +131,7 @@ Now, to run the analysis, I need to compute the estimated values for latent vari
 p_week0 <- lavPredict(f1_week0)
 p_week0 <- as.data.frame(p_week0)
 colnames(p_week0) <- c("Factor1_w0", "Factor2_w0", "Factor3_w0", "Factor4_w0", "Factor5_w0", "Factor6_w0")
+
 
 ```
 
@@ -109,7 +155,7 @@ factor_lm <- function(x) {
   return(list(f1,f2,f3,f4,f5,f6,f7))
 }
 
-factor_lm(cfa2_week0)
+Factors_list <- factor_lm(cfa2_week0)
 ```
 From this, we have 3 factors are significantly correlated to motor scores at week 52.
 
@@ -179,11 +225,14 @@ Factors_W0 <- Factors_W0 %>% mutate_if(is.character,as.factor) #They only take f
 Factors_W0$SEXCD <- as.factor(Factors_W0$SEXCD) 
 Factors_W0$DEATHRPD <- as.factor(Factors_W0$DEATHRPD)
 Factors_W0$AGE <- as.numeric(Factors_W0$AGE)
+Factors_W0$Factor1_w0_flipped <- Factors_W0$Factor1_w0+1
 
 ```
 
 
 ```{r}
+lm_week0_factor1_only <- lm(TLAMS52 ~ Factor1_w0, data = Factors_W0)
+
 lm_week0_factor1 <- lm(TLAMS52 ~  Factor1_w0 + SEXCD + SPLVL1 + AGE + ASIMPC01_A, data = Factors_W0)
 
 lm_week0_factor2 <- lm(TLAMS52 ~  Factor2_w0 + SEXCD + SPLVL1 + AGE + ASIMPC01_A, data = Factors_W0)
@@ -191,6 +240,7 @@ lm_week0_factor2 <- lm(TLAMS52 ~  Factor2_w0 + SEXCD + SPLVL1 + AGE + ASIMPC01_A
 lm_week0_factor3 <- lm(TLAMS52 ~  Factor3_w0 + SEXCD + SPLVL1 + AGE + ASIMPC01_A, data = Factors_W0)
 
 list(summary(lm_week0_factor1), summary(lm_week0_factor2), summary(lm_week0_factor3))
+
 ```
 
 From the results output, it seems like factor 1 (lm_week0_factor1) is the only significant variable when holding other independent predictors constant. 
