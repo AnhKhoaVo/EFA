@@ -7,3 +7,7 @@ In this dataset, I explored the data by using EFA and SEM from package lavaan. M
 I explored each variable of this data by graphing them longitudinally to see how they change overtime. I found that most of our data had the initial dip or peak (depending on the variables) after the injury then went back to the origian normal range. All of them are not within normal distrution (most are positively skewed), so transformation or scaling is required. 
 
 Based on our previous report, it showed that one variable at week 4 can strongly predict our outcome at week 52. I would like to see if groups of variables is better at predicting than just few single variables. At this stage, I am just looking timepoint as discrete. 
+
+Analyzing variables at emergency, it shows that Factor 1 (Blood Factor) is significantly associated with Motor Recovery, and Marked Recovery; where as Factor Liver and Kidney are associated with Death. 
+
+Model diagnostics for linear regression show that our model has heteroscedascity, which was then addressed for by using corrected standard errors. Logistic regression and Cox proportional hazard were diagnosed and met with their assumptions. 
