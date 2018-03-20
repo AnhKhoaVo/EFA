@@ -1621,3 +1621,13 @@ forestplot(labeltext = c("Factor Liver", "Factor Kidney", "Age", "Sex", "Spinal 
           lower=ETR$LB, upper=ETR$UB,
           title="Hazard Ratio", 
           lwd.ci = 2)
+
+#Heat plot
+cfa_week0_variables <- cfa_week0[c(-1,-2,-3,-40)]
+
+
+Cor_cfa <- cor(cfa_week0_variables, use="pairwise.complete.obs")
+Cor_cfa <- as.matrix(Cor_cfa)
+
+corrplot(Cor_cfa, method = "color", type = "upper", order = "FPC",
+         addCoef.col = "black", number.cex=0.35)
