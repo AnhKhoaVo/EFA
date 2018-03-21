@@ -1628,6 +1628,10 @@ cfa_week0_variables <- cfa_week0[c(-1,-2,-3,-40)]
 
 Cor_cfa <- cor(cfa_week0_variables, use="pairwise.complete.obs")
 Cor_cfa <- as.matrix(Cor_cfa)
+corrplot(Cor_cfa, method = "color", type = "upper", order = "hclust",
+         addCoef.col = "black", number.cex=0.35)
 
-corrplot(Cor_cfa, method = "color", type = "upper", order = "FPC",
+Cor_cfa_52 <- cor(cfa_week52, use="pairwise.complete.obs")
+Cor_cfa_52 <- as.matrix(Cor_cfa_52)
+corrplot(Cor_cfa_52, method = "color", type = "upper", order = "hclust",
          addCoef.col = "black", number.cex=0.35)
