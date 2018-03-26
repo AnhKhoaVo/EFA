@@ -6,6 +6,7 @@ MS00_raw <- cfa_week0[2]
 
 MS01_raw <- cfa_week0[3]
 
+cfa_week0_only <- cfa_week0[4:39]
 source("https://bioconductor.org/biocLite.R")
 biocLite("Rgraphviz")
 
@@ -596,7 +597,7 @@ Other_Variables$Pulse <- Other_Variables$BPSYS - Other_Variables$BPDIA
 
 #Combine dataframe in week 0 to identify if Anemia matters
 
-Factors_Overtime_Anemia <- cbind(Factors_Overtime, Anemia)
+Factors_Overtime_Anemia <- cbind(Factors_Overtime, Anemia, cfa_week0_only)
 
 Factors_Overtime_Anemia <- subset(Factors_Overtime_Anemia, !is.na(ASIMPC01_A))
 
@@ -624,6 +625,8 @@ summary(lm_week0_Anemia_alone)
 lm_week0_Anemia_Factor <- lm(TLAMS52 ~ Factor1_w0_flipped, data = Factors_Overtime_Anemia)
 summary(lm_week0_Anemia_Factor)
 
+lm_week0_Anemia_variables <- lm(TLAMS52 ~ RBC00*HGB00*HCT00 + AGE + SEXCD  + ASIMPC01_A + SPLVL1, data = Factors_Overtime_Anemia)
+summary(lm_week0_Anemia_variables)
 
 AIC(lm_week0_Anemia)
 AIC(lm_week0_Anemia_inj)
@@ -878,7 +881,7 @@ Other_Variables$ASI_numeric <- ifelse(Other_Variables$ASIMPC01_A == "A", 1,
 Other_Variables$Marked_Recovery <- ifelse(Other_Variables$MODBEN52_1 - Other_Variables$ASI_numeric >= 2, 1,0)
 
 
-Factors_MR <- do.call("cbind", list(MS01_raw, MS00_raw, MS52_raw, p_week0, p_week1, p_week2, p_week4, p_week8, p_week52, Other_Variables, RBC))
+Factors_MR <- do.call("cbind", list(MS01_raw, MS00_raw, MS52_raw, p_week0, p_week1, p_week2, p_week4, p_week8, p_week52, Other_Variables, cfa_week0_only))
 
 # GLM for marked Recovery (Factor 1 and 2 alone are significant but when consider other variables, only Factor 1 is sig)
 Factors_MR <- Factors_MR %>% mutate_if(is.character,as.factor)
@@ -911,6 +914,9 @@ summary(glm_MR)
 
 glm_MR_2 <- glm(Marked_Recovery ~ Factor2_w0 +  AGE + SEXCD  + ASIMPC01_A + SPLVL1, data = Factors_MR, family = quasibinomial)
 summary(glm_MR_2)
+
+glm_MR_variables <- glm(Marked_Recovery ~ RBC00*HCT00*HGB00 + AGE + SEXCD  + ASIMPC01_A + SPLVL1, data = Factors_MR, family = quasibinomial)
+summary(glm_MR_variables)
 
 drop1(glm_MR_inj, test = "Chi")
 
@@ -997,6 +1003,7 @@ sjp.glm(glm_MR)
 #Turn estimates in glm output in odds ratio
 exp(cbind(Odds=coef(glm_MR), confint(glm_MR)))
 
+exp(cbind(Odds=coef(glm_MR_variables), confint(glm_MR_variables)))
 
 plot(glm_MR)
 
@@ -1347,7 +1354,7 @@ summary(Hazard_Factor3)
 Hazard_Factor4 <- coxph(Surv(Survival_days, Survival_Rates==0)~ Factor4_w0_flipped + AGE + SEXCD + SPLVL1 + ASIMPC01_A, data = Factors_Overtime_Death_Sur)
 summary(Hazard_Factor4)
 
-Hazard_Factors <- coxph(Surv(Survival_days, Survival_Rates==0)~ Factor3_w0_flipped + Factor4_w0_flipped + AGE + SEXCD + SPLVL1 + ASIMPC01_A, dist = "weibull", data = Factors_Overtime_Death_Sur)
+Hazard_Factors <- coxph(Surv(Survival_days, Survival_Rates==0)~ Factor3_w0_flipped + Factor4_w0_flipped + AGE + SEXCD + SPLVL1 + ASIMPC01_A, data = Factors_Overtime_Death_Sur)
 summary(Hazard_Factors)
 
 library(survminer)
@@ -1594,6 +1601,8 @@ cfa2_week0_all_liver <- subset(cfa2_week0_all, Liver_enzymes=="1")
 forest_model(lm_week0_Anemia)
 forest_model(glm_MR)
 forest_model(Hazard_Factors)
+forest_model(Hazard_Factor3)
+forest_model(Hazard_Factor4)
 
 #ETR tables
 ETR <- Converted_Wei$ETR
