@@ -628,6 +628,16 @@ summary(lm_week0_Anemia_Factor)
 lm_week0_Anemia_variables <- lm(TLAMS52 ~ RBC00*HGB00*HCT00 + AGE + SEXCD  + ASIMPC01_A + SPLVL1, data = Factors_Overtime_Anemia)
 summary(lm_week0_Anemia_variables)
 
+lm_week0_Anemia_A <- lm(TLAMS52 ~ Factor1_w0_flipped +  AGE + SEXCD  + SPLVL1, ASIMPC01_A == "A", data = Factors_Overtime_Anemia)
+lm_week0_Anemia_B <- lm(TLAMS52 ~ Factor1_w0_flipped +  AGE + SEXCD  + SPLVL1, ASIMPC01_A == "B", data = Factors_Overtime_Anemia)
+lm_week0_Anemia_C <- lm(TLAMS52 ~ Factor1_w0_flipped +  AGE + SEXCD  + SPLVL1, ASIMPC01_A == "C", data = Factors_Overtime_Anemia)
+lm_week0_Anemia_D <- lm(TLAMS52 ~ Factor1_w0_flipped +  AGE + SEXCD  + SPLVL1, ASIMPC01_A == "D", data = Factors_Overtime_Anemia)
+
+summary(lm_week0_Anemia_A)
+summary(lm_week0_Anemia_B)
+summary(lm_week0_Anemia_C)
+summary(lm_week0_Anemia_D)
+
 AIC(lm_week0_Anemia)
 AIC(lm_week0_Anemia_inj)
 AIC(lm_week0_Anemia_alone)
@@ -923,6 +933,15 @@ drop1(glm_MR_inj, test = "Chi")
 glm_MR_reduced <- glm(Marked_Recovery ~ Factor1_w0 + SPLVL1 + AGE + ASIMPC01_A, data = Factors_MR, family = quasibinomial)
 summary(glm_MR_reduced)
 
+glm_MR_A <- glm(Marked_Recovery ~ Factor1_w0_flipped +  AGE + SEXCD  + SPLVL1,  subset = ASIMPC01_A == "A", data = Factors_MR, family = binomial)
+glm_MR_B <- glm(Marked_Recovery ~ Factor1_w0_flipped +  AGE + SEXCD  + SPLVL1,  subset = ASIMPC01_A == "B", data = Factors_MR, family = binomial)
+glm_MR_C <- glm(Marked_Recovery ~ Factor1_w0_flipped +  AGE + SEXCD  + SPLVL1,  subset = ASIMPC01_A == "C", data = Factors_MR, family = binomial)
+glm_MR_D <- glm(Marked_Recovery ~ Factor1_w0_flipped +  AGE + SEXCD  + SPLVL1,  subset = ASIMPC01_A == "D", data = Factors_MR, family = binomial)
+
+summary(glm_MR_A)
+summary(glm_MR_B)
+summary(glm_MR_C)
+summary(glm_MR_D)
 
 anova(glm_MR_reduced, glm_MR, test = "Chisq")
 
@@ -1261,6 +1280,7 @@ sjp.glm(glm_drug)
 Other_Death$Survival_days[is.na(Other_Death$Survival_days)] <- 365
 
 Factors_Overtime_Death_Sur <- merge(Factors_Overtime_Death, Other_Death, by.x=c("PTID"), by.y=c("ptid"))
+Factors_Overtime_Death_Sur <- do.call("cbind", list(Factors_Overtime_Death_Sur, cfa_week0_only)) 
 
 Factors_Overtime_Death_Sur$Survival_Rates <- ifelse(Factors_Overtime_Death_Sur$Death == 1, 0,1)
 Factors_Overtime_Death_Sur$Survival_Rates <- as.factor(Factors_Overtime_Death_Sur$Survival_Rates)
@@ -1348,14 +1368,29 @@ write.csv(Survival_Factor3_all, 'Univariate_Cox.csv')
 write.table(Survival_Factor3_all, 'Univariate_Cox.txt')
 
 #Multivariate 
-Hazard_Factor3 <- coxph(Surv(Survival_days, Survival_Rates==0)~ Factor3_w0_flipped + AGE + SEXCD + SPLVL1 + ASIMPC01_A, data = Factors_Overtime_Death_Sur)
+Hazard_Factor3 <- coxph(Surv(Survival_days, Survival_Rates==0)~ Factor3_w0_flipped + AGE + SEXCD + ASIMPC01_A + SPLVL1, data = Factors_Overtime_Death_Sur)
 summary(Hazard_Factor3)
 
-Hazard_Factor4 <- coxph(Surv(Survival_days, Survival_Rates==0)~ Factor4_w0_flipped + AGE + SEXCD + SPLVL1 + ASIMPC01_A, data = Factors_Overtime_Death_Sur)
+Hazard_Factor4 <- coxph(Surv(Survival_days, Survival_Rates==0)~ Factor4_w0_flipped + AGE + SEXCD + ASIMPC01_A + SPLVL1, data = Factors_Overtime_Death_Sur)
 summary(Hazard_Factor4)
 
 Hazard_Factors <- coxph(Surv(Survival_days, Survival_Rates==0)~ Factor3_w0_flipped + Factor4_w0_flipped + AGE + SEXCD + SPLVL1 + ASIMPC01_A, data = Factors_Overtime_Death_Sur)
 summary(Hazard_Factors)
+
+Hazard_Variables_Factor3 <- coxph(Surv(Survival_days, Survival_Rates==0)~ CK000*ALT00*AST00 + AGE + SEXCD + SPLVL1 + ASIMPC01_A, data = Factors_Overtime_Death_Sur)
+summary(Hazard_Variables_Factor3)
+
+Hazard_Variables_Factor4 <- coxph(Surv(Survival_days, Survival_Rates==0)~ BUN00*BC900*BUA00*P0400 + AGE + SEXCD + SPLVL1 + ASIMPC01_A, data = Factors_Overtime_Death_Sur)
+summary(Hazard_Variables_Factor4)
+
+#37 out of 47 dead patients have AIS-A
+Hazard_Factor3_A <- coxph(Surv(Survival_days, Survival_Rates==0)~ Factor3_w0_flipped + AGE + SEXCD + SPLVL1, subset = ASIMPC01_A == "A", data = Factors_Overtime_Death_Sur)
+Hazard_Factor4_A <- coxph(Surv(Survival_days, Survival_Rates==0)~ Factor4_w0_flipped + AGE + SEXCD + SPLVL1, subset = ASIMPC01_A == "A", data = Factors_Overtime_Death_Sur)
+
+summary(Hazard_Factor3_A)
+summary(Hazard_Factor4_A)
+
+
 
 library(survminer)
 ggforest(Hazard_Factor3, data = Factors_Overtime_Death_Sur)
@@ -1431,8 +1466,18 @@ autoplot(aa_fit)
 
 #Weibull Distribution - Accelerated Failure Time model (AFT)
 library(SurvRegCensCov)
-Wei_Factor3 <- survreg(Surv(Survival_days, Survival_Rates == 0) ~ Factor3_w0_flipped + Factor4_w0_flipped + AGE + SEXCD + SPLVL1 + ASIMPC01_A, dist = "weibull", data = Factors_Overtime_Death_Sur)
+Wei_Factor3 <- survreg(Surv(Survival_days, Survival_Rates == 0) ~ Factor3_w0_flipped + AGE + SEXCD + SPLVL1 + ASIMPC01_A, dist = "weibull", data = Factors_Overtime_Death_Sur)
 Converted_Wei <- ConvertWeibull(Wei_Factor3, conf.level = 0.95)
+
+Wei_Factor4 <- survreg(Surv(Survival_days, Survival_Rates == 0) ~ Factor4_w0_flipped + AGE + SEXCD + SPLVL1 + ASIMPC01_A, dist = "weibull", data = Factors_Overtime_Death_Sur)
+Converted_Wei4 <- ConvertWeibull(Wei_Factor4, conf.level = 0.95)
+
+Wei_Variables_Factor3 <- survreg(Surv(Survival_days, Survival_Rates == 0) ~ CK000*ALT00*AST00 + AGE + SEXCD + SPLVL1 + ASIMPC01_A, dist = "weibull", data = Factors_Overtime_Death_Sur)
+Converted_Wei_Variables3 <- ConvertWeibull(Wei_Variables_Factor3, conf.level = 0.95)
+
+Wei_Variables_Factor4 <- survreg(Surv(Survival_days, Survival_Rates == 0) ~ BUN00*BC900*BUA00*P0400 + AGE + SEXCD + SPLVL1 + ASIMPC01_A, dist = "weibull", data = Factors_Overtime_Death_Sur)
+Converted_Wei_Variables4 <- ConvertWeibull(Wei_Variables_Factor4, conf.level = 0.95)
+
 
 Wei_Factor<- WeibullReg(Surv(Survival_days, Survival_Rates == 0) ~ Factor3_w0 + AGE + SEXCD + SPLVL1 + ASIMPC01_A, data = Factors_Overtime_Death_Sur) #Same as above
 
@@ -1637,7 +1682,7 @@ cfa_week0_variables <- cfa_week0[c(-1,-2,-3,-40)]
 
 Cor_cfa <- cor(cfa_week0_variables, use="pairwise.complete.obs")
 Cor_cfa <- as.matrix(Cor_cfa)
-corrplot(Cor_cfa, method = "color", type = "upper", order = "hclust",
+corrplot(Cor_cfa, method = "color", type = "upper", order = "FPC",
          addCoef.col = "black", number.cex=0.35)
 
 Cor_cfa_52 <- cor(cfa_week52, use="pairwise.complete.obs")
