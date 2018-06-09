@@ -6,7 +6,17 @@ MS00_raw <- cfa_week0[2]
 
 MS01_raw <- cfa_week0[3]
 
+MS04_raw <- MS_only["TLAMS04"]
+
+MS08_raw <- MS_only["TLAMS08"]
+
+MS16_raw <- MS_only["TLAMS16"]
+
+MS26_raw <- MS_only["TLAMS26"]
+
 cfa_week0_only <- cfa_week0[4:39]
+cfa_week0_only_scaled <- as.data.frame(scale(cfa_week0[4:39], scale = TRUE, center = TRUE))
+
 source("https://bioconductor.org/biocLite.R")
 biocLite("Rgraphviz")
 
@@ -245,6 +255,7 @@ Factors_Overtime <- do.call("cbind", list(MS52_raw, p_week0, p_week1, p_week2, p
 Factors_Overtime$SEXCD <- as.factor(Factors_Overtime$SEXCD) 
 Factors_Overtime$AGE <- as.numeric(Factors_Overtime$AGE)
 
+write.xlsx(Factors_Overtime, 'Factors_Overtime.xlsx')
 #UCP is not working for long format so I used the wide format for each timepoint
 #Week 0
 Factor1 <- cfa_week0[, c("RBC00", "HGB00", "HCT00")]
@@ -257,11 +268,11 @@ Factors_W0$DEATHRPD <- as.factor(Factors_W0$DEATHRPD)
 Factors_W0$AGE <- as.numeric(Factors_W0$AGE)
 
 #ctree can't take missing values in response!
-Factors_W0 <- subset(Factors_W0, !is.na(TLAMS52))
+Factors_W0_noMS <- subset(Factors_W0, !is.na(TLAMS52))
 
 #UCP for LMS52
 library(party)
-UCP_Factors_W0 <- ctree(TLAMS52 ~ Factor1_w0 + AGE + SPLVL1 + ASIMPC01_A, data = Factors_W0)
+UCP_Factors_W0 <- ctree(TLAMS52 ~ Factor1_w0 + AGE + SPLVL1 + ASIMPC01_A, data = Factors_W0_noMS)
 plot(UCP_Factors_W0)
 
 
@@ -271,7 +282,7 @@ Factors_W4 <- do.call("cbind", list(MS52_raw, p_week4, Other_Variables, Factor1)
 Factors_W4 <- Factors_W4 %>% mutate_if(is.character,as.factor) #They only take factor values
 Factors_W4$SEXCD <- as.factor(Factors_W4$SEXCD) 
 
-Factors_W4 <- subset(Factors_W4, !is.na(TLAMS52))
+Factors_W4_noMS <- subset(Factors_W4, !is.na(TLAMS52))
 
 UCP_Factors_W4 <- ctree(TLAMS52 ~ Factor1 + Factor2 + SEXCD + SPLVL1 + AGE + ASIMPC01_A, data = Factors_W4)
 plot(UCP_Factors_W4)
@@ -301,7 +312,6 @@ plot(UCP_Factor5_Overtime)
 UCP_Factor6_Overtime <- ctree(TLAMS52 ~ Factor6_w0 + Factor6_w1 + Factor6_w2 + Factor6_w4 + SEXCD + SPLVL1 + AGE + ASIMPC01_A, data = Factors_Overtime)
 plot(UCP_Factor6_Overtime)
 
-#Transforming data to long format
 
 #Taking Correlation r values between MS52 and Factors across time and put into df
 Cor_Factors <- cor(Factors_Overtime[1:37], use="pairwise.complete.obs")
@@ -365,7 +375,7 @@ UCP_Factor6_Overtime <- ctree(TLAMS52 ~ Factor6_w0 + Factor6_w1 + Factor6_w2 + F
 plot(UCP_Factor6_Overtime)
 
 #Tree for individual week!
-UCP_week0 <- ctree(TLAMS52 ~ Factor1_w0 + SEXCD + SPLVL1 + AGE + ASIMPC01_A, data = Factors_Overtime)
+UCP_week0 <- ctree(Marked_Recovery ~ SPLVL1 + SEXCD + AGE + ASIMPC01_A + slope_Factor, data = subset(Factors_Overtime_coefs_update, !is.na(Marked_Recovery)))
 plot(UCP_week0)
 
 UCP_week1 <- ctree(TLAMS52 ~ Factor1_w1 + Factor2_w1 +  Factor6_w1 + SEXCD + SPLVL1 + AGE + ASIMPC01_A, data = subset(Factors_Overtime, !is.na(TLAMS52)))
@@ -598,6 +608,7 @@ Other_Variables$Pulse <- Other_Variables$BPSYS - Other_Variables$BPDIA
 #Combine dataframe in week 0 to identify if Anemia matters
 
 Factors_Overtime_Anemia <- cbind(Factors_Overtime, Anemia, cfa_week0_only)
+Factors_Overtime_Anemia_scaled <- cbind(Factors_Overtime, Anemia, cfa_week0_only_scaled)
 
 Factors_Overtime_Anemia <- subset(Factors_Overtime_Anemia, !is.na(ASIMPC01_A))
 
@@ -610,6 +621,19 @@ Factors_Overtime_Anemia$SEXCD <- as.factor(Factors_Overtime_Anemia$SEXCD)
 Factors_Overtime_Anemia$AGE <- as.numeric(Factors_Overtime_Anemia$AGE)
 Factors_Overtime_Anemia$DEATHRPD <- as.factor(Factors_Overtime_Anemia$DEATHRPD)
 Factors_Overtime_Anemia$Factor1_w0_flipped <- Factors_Overtime_Anemia$Factor1_w0+1
+Factors_Overtime_Anemia$Severity <- ifelse(Factors_Overtime_Anemia$ASIMPC01_A == "A", 1,
+                                      ifelse(Factors_Overtime_Anemia$ASIMPC01_A == "B", 1,
+                                             ifelse(Factors_Overtime_Anemia$ASIMPC01_A == "C", 0, 0)))
+Factors_Overtime_Anemia$Severity <- as.factor(Factors_Overtime_Anemia$Severity)
+
+Factors_Overtime_Anemia_surg <- merge(surg_vars, Factors_Overtime_Anemia, by.x=c("ptid"), by.y=c("PTID"))
+Factors_Overtime_AIS <- merge(Factors_Overtime_Anemia_surg, new_AIS, by.x=c("ptid"), by.y=c("PTID"))
+Factors_Overtime_AIS$AIS_4 <- as.factor(Factors_Overtime_AIS$AIS_4)
+Factors_Overtime_AIS$Severity_w4 <- ifelse(Factors_Overtime_AIS$AIS_4 == "A", 1,
+                                           ifelse(Factors_Overtime_AIS$AIS_4 == "B", 1,
+                                                  ifelse(Factors_Overtime_AIS$AIS_4 == "C", 0, 0)))
+
+
 
 lm_week0_Anemia <- lm(TLAMS52 ~ Factor1_w0_flipped +  AGE + SEXCD  + ASIMPC01_A + SPLVL1, data = Factors_Overtime_Anemia)
 summary(lm_week0_Anemia)
@@ -625,8 +649,34 @@ summary(lm_week0_Anemia_alone)
 lm_week0_Anemia_Factor <- lm(TLAMS52 ~ Factor1_w0_flipped, data = Factors_Overtime_Anemia)
 summary(lm_week0_Anemia_Factor)
 
-lm_week0_Anemia_variables <- lm(TLAMS52 ~ RBC00*HGB00*HCT00 + AGE + SEXCD  + ASIMPC01_A + SPLVL1, data = Factors_Overtime_Anemia)
+lm_week0_Anemia_variables <- lm(TLAMS52 ~ RBC00*HGB00*HCT00 + AGE + SEXCD  + ASIMPC01_A + SPLVL1, data = Factors_Overtime_Anemia_scaled)
 summary(lm_week0_Anemia_variables)
+
+#Predictive Model 
+#Split data in half to build predictive model
+sample <- sample(seq(1, nrow(Factors_Overtime_Anemia)), replace=FALSE)
+training <- Factors_Overtime_Anemia[sample[1:647],]
+test <-Factors_Overtime_Anemia[sample[548:nrow(Factors_Overtime_Anemia)],]
+
+lm_week0_training <- lm(TLAMS52 ~ Factor1_w0_flipped +  AGE + SEXCD  + ASIMPC01_A + SPLVL1, data = training)
+predict_lm <- predict(lm_week0_training, data=training, newdata = test)
+
+actuals_preds <- data.frame(cbind(actuals=test$TLAMS52, 
+                                  predicteds=predict_lm))
+
+accuracy <- data.frame(apply(actuals_preds, 1, min) / apply(actuals_preds, 1, max))
+colnames(accuracy) <- "x"
+accuracy <- subset(accuracy, x!= -Inf)
+mean(accuracy$x)
+
+
+# Severity Prediction
+
+glm_week0_severity <- glm(Severity_w4 ~ Factor2_w0 + AGE + SEXCD + SPLVL1 + acute_duration + polytrauma + inj_update, data = Factors_Overtime_AIS, family = quasibinomial)
+summary(glm_week0_severity)
+
+library(stargazer)
+stargazer(cbind(p=summary(lm_week0_Anemia_variables)$coefficients[,4],B=coef(lm_week0_Anemia_variables), confint(lm_week0_Anemia_variables)), type = "text")
 
 lm_week0_Anemia_A <- lm(TLAMS52 ~ Factor1_w0_flipped +  AGE + SEXCD  + SPLVL1, ASIMPC01_A == "A", data = Factors_Overtime_Anemia)
 lm_week0_Anemia_B <- lm(TLAMS52 ~ Factor1_w0_flipped +  AGE + SEXCD  + SPLVL1, ASIMPC01_A == "B", data = Factors_Overtime_Anemia)
@@ -694,6 +744,10 @@ b <- outlierKD(Factors_Overtime, Factor1_w0)
 b <- cbind(Factors_Overtime_Anemia, b)
 #No outliers worth removing 
 
+#Another good outliers test 
+library(olsrr)
+ols_plot_resid_stud(lm_week0_Anemia)
+
 #Or using robust linear regression to addressing for outliers! (and heteroscedascity?)
 rlm_week0_Anemia_Factor <- rlm(TLAMS52~ Factor1_w0_flipped + AGE + SPLVL1 + ASIMPC01_A + SEXCD, data = Factors_Overtime_Anemia, init = "ls", maxit = 50)
 
@@ -731,6 +785,12 @@ shapiro.test(resid(lm_week0_Anemia))
 library(lmtest)
 ncvTest(lm_week0_Anemia)
 bptest(lm_week0_Anemia)
+
+# ncvTest and bptest are different because bptest is studendized and ncvTest is not
+# => which means bptest is more robust than the original one (ncvTest)
+# => go with bptest -> null is: homoscedasicity 
+library(olsrr)
+ols_test_breusch_pagan(lm_week0_Anemia, rhs = TRUE, multiple = TRUE)
 
 spreadLevelPlot(lm_week0_Anemia)
 # We can also try BoxCox but with our dataset, boxcox may not be appropriate because of extreme values (0)
@@ -779,15 +839,27 @@ qqnorm(resid(lm_boxcox))
 summary(p1 <- powerTransform(lm_week0_Anemia))
 
 # => Both options did NOT transform data!!!!!!!!
-# ncvTest and bptest are different because bptest is studendized and ncvTest is not
-# => which means bptest is more robust than the original one (ncvTest)
-# => go with bptest -> null is: homoscedasicity 
 
 #Use this to treat for heteroscadasicity or generalized additive measures or rlm?
 library(lmtest)
 library(sandwich)
 library(caret)
-vcovHC(lm_week0_Anemia)
+cov.lm <- sqrt(diag(vcovHC(lm_week0_Anemia, type="HC")))
+naive.std <- summary(lm_week0_Anemia)$coefficients[,2]
+coef_table <- cbind("Estimate"=coef(lm_week0_Anemia),
+                    "Naive SE" = naive.std,
+                    "Robust SE" = cov.lm,
+                    "p value" = summary(lm_week0_Anemia)$coefficients[,4])
+library(stargazer)
+stargazer(coef_table, type ="text")
+
+#Faster code!
+stargazer(cbind("Estimate"=coef(lm_week0_Anemia),
+                confint(lm_week0_Anemia),
+                "Naive SE" = summary(lm_week0_Anemia)$coefficients[,2],
+                "Robust SE" = sqrt(diag(vcovHC(lm_week0_Anemia, type="HC"))),
+                "P value" = summary(lm_week0_Anemia)$coefficients[,4]), type = "text")
+
 coeftest(lm_week0_Anemia, vcov. = vcovHC)
 
 coeftest(lm_week0_Anemia,vcov=hccm(lm_week0_Anemia))
@@ -818,14 +890,21 @@ RBC_scaled <- as.data.frame(RBC_scaled)
 
 Factors_Overtime_Anemia <- cbind(Factors_Overtime_Anemia, RBC_scaled)
 
-UCP_RBC <- partykit::ctree(TLAMS52 ~ RBC00 + SPLVL1 + AGE + ASIMPC01_A, data = Factors_Overtime_Anemia)
+Factors_Overtime_Anemia_noMS <- subset(Factors_Overtime_Anemia, !is.na(TLAMS52))
+Factors_Overtime_Anemia_noAIS <- subset(Factors_Overtime_Anemia, !is.na(ASIMPC01_A))
+
+
+UCP_RBC <- ctree(TLAMS52 ~ RBC00 + SPLVL1 + AGE + ASIMPC01_A, data = Factors_Overtime_Anemia_noMS)
 plot(UCP_RBC)
 
-UCP_HGB <- partykit::ctree(TLAMS52 ~ HGB00 + SPLVL1 + AGE + ASIMPC01_A, data = Factors_Overtime_Anemia)
+UCP_HGB <- ctree(TLAMS52 ~ HGB00 + SPLVL1 + AGE + ASIMPC01_A, data = Factors_Overtime_Anemia)
 plot(UCP_HGB)
 
-UCP_HCT <- partykit::ctree(TLAMS52 ~ HCT00 + SPLVL1 + AGE + ASIMPC01_A, data = Factors_Overtime_Anemia)
+UCP_HCT <- ctree(TLAMS52 ~ HCT00 + SPLVL1 + AGE + ASIMPC01_A, data = Factors_Overtime_Anemia)
 plot(UCP_HCT)
+
+UCP_AIS <- ctree(ASIMPC01_A ~ RBC00*HGB00*HCT00 + SPLVL1 + AGE, data = Factors_Overtime_Anemia_noAIS)
+plot(UCP_AIS)
 
 #Figures for Factor 1
 ggplot(data= subset(Factors_Overtime_Anemia, !is.na(ASIMPC01_A)), aes(x=TLAMS52, y=Factor1_w0_flipped))+ 
@@ -844,35 +923,75 @@ Other_Variables$Walk <- as.factor(Other_Variables$Walk)
 
 Other_Variables <- Other_Variables %>% mutate_if(is.character,as.factor)
 
-Factors_Walk <- do.call("cbind", list(MS52_raw, p_week0, p_week1, p_week2, p_week4, p_week8, p_week52, Other_Variables))
+Factors_Walk <- do.call("cbind", list(MS52_raw, MS00_raw, p_week0, p_week1, p_week2, p_week4, p_week8, p_week52, Bio, Other_Variables))
 
 Factors_Walk$SEXCD <- as.factor(Factors_Walk$SEXCD) 
 Factors_Walk$AGE <- as.numeric(Factors_Walk$AGE)
 Factors_Walk$ASIMPC01_A <- as.factor(Factors_Walk$ASIMPC01_A)
 
-
-
-glm_walk <- glm(Walk ~ Factor1_w0 + SEXCD + SPLVL1 + AGE + ASIMPC01_A, data = Factors_Walk, family = "binomial")
+glm_walk <- glm(Walk ~ Factor1_w0 + SEXCD + SPLVL1 + AGE + ASIMPC01_A, data = Factors_Walk, family = "quasibinomial")
 summary(glm_walk)
 
 drop1(glm_walk, test = "Chi")
 stepAIC(glm_walk)
 
-glm_walk_reduce <- glm(Walk ~ Factor1_w0 + AGE + ASIMPC01_A, data = Factors_Walk, family = "quasibinomial")
+glm_walk_reduce <- glm(Walk ~ TLAMS00 + AGE + ASIMPC01_A + SEXCD + SPLVL1, data = Factors_Walk, family = "quasibinomial")
 summary(glm_walk_reduce)
 
 anova(glm_walk, glm_walk_reduce, test = "Chisq")
 
-Factors_Walk <- subset(Factors_Walk, !is.na(Walk))
+Factors_Walk_noNa <- subset(Factors_Walk, !is.na(Walk))
 
-UCP_walk <- ctree(Walk ~ Factor1_w0 + AGE + SEXCD + SPLVL1 + ASIMPC01_A, data = Factors_Walk)
+UCP_walk <- ctree(Walk ~ Factor1_w0 + AGE + SEXCD + SPLVL1 + ASIMPC01_A, data = Factors_Walk_noNa)
 
 plot(UCP_walk)
 
 sjp.glm(glm_walk_reduce)
+
+#ROC for walk 
+Factors_Walk$Ordered_ASIMPC01_A <- factor(Factors_Walk$ASIMPC01_A, levels=c("A", "B", "C", "D"), ordered=TRUE)
+Factors_Walk$Ordered_SPLVL1 <- factor(Factors_Walk$SPLVL1, levels=c("T", "C"), ordered= TRUE)
+Factors_Walk$Ordered_SEXCD <- factor(Factors_Walk$SEXCD, levels=c("1", "2"), ordered= TRUE)
+Factors_Walk$Ordered_Factor1_w0 <- factor(Factors_Walk$Factor1_w0, ordered = TRUE)
+Factors_Walk$Ordered_Factor2_w0 <- factor(Factors_Walk$Factor2_w0, ordered = TRUE)
+
+W1 = roc(Walk ~ Ordered_Factor1_w0, data=Factors_Walk, smooth=TRUE)  
+plot(W1, col="red", main = "ROC for Factor 1 (Blood)")
+
+roc_wA = roc(Walk ~ Ordered_Factor1_w0, data=subset(Factors_Walk, ASIMPC01_A=="A"))  
+roc_wB = roc(Walk ~ Ordered_Factor1_w0, data=subset(Factors_Walk, ASIMPC01_A=="B"))  
+roc_wC = roc(Walk ~ Ordered_Factor1_w0, data=subset(Factors_Walk, ASIMPC01_A=="C"))  
+roc_wD = roc(Walk ~ Ordered_Factor1_w0, data=subset(Factors_Walk, ASIMPC01_A=="D"))  
+
+plot(roc_wA, main = "ROC of Factor 1 in Walking across each AIS grades", col="snow4", type="l", pch = 19, lty = 5)
+lines(roc_wB, type="l", col = "burlywood4", pch = 16, lty = 2)
+lines(roc_wC, type = "l", col = "orangered2", pch = 17, lty = 1)
+lines(roc_wD, col = "tan3", type ="l", pch = 18, lty = 3)
+legend(0.37,0.5, legend=c("AIS A", "AIS B", "AIS C", "AIS D"),
+       lty = c(5,2,1,3),col = c("snow4", "burlywood4", "orangered2", "tan3"), 
+       title = "Line Types", cex =0.8, box.lty = 0)
+
+
 #Test for dispersion in glm model
 library(msme)
 P__disp(glm_walk)
+
+
+# Does Factor 1 predict AIS grades? multinomial logistic
+library(nnet)
+multiple_logistic <- multinom(ASIMPC01_A ~ Factor1_w0_flipped + polytrauma + acute_duration, data = Factors_Overtime_Anemia_surg)
+summary(multiple_logistic)
+
+z <- summary(multiple_logistic)$coefficients/summary(multiple_logistic)$standard.errors
+p <- (1 - pnorm(abs(z), 0, 1)) * 2
+
+exp(coef(multiple_logistic))
+
+
+AIS_grades <- polr(ASIMPC01_A ~ polytrauma + acute_duration + Factor1_w0_flipped + SEXCD + AGE + SPLVL1, data = Factors_Overtime_Anemia_surg)
+AIS_table <- coef(summary(AIS_grades))
+AIS_table <- cbind(AIS_table, "p value" = pnorm(abs(AIS_table[, "t value"]), lower.tail = FALSE) * 2)
+exp(AIS_grades$zeta)
 
 #Marked Recovery 
 # 9 in MODBEN52 means NA so I transformed them
@@ -892,6 +1011,7 @@ Other_Variables$Marked_Recovery <- ifelse(Other_Variables$MODBEN52_1 - Other_Var
 
 
 Factors_MR <- do.call("cbind", list(MS01_raw, MS00_raw, MS52_raw, p_week0, p_week1, p_week2, p_week4, p_week8, p_week52, Other_Variables, cfa_week0_only))
+Factors_MR_scaled <- do.call("cbind", list(MS01_raw, MS00_raw, MS52_raw, p_week0, p_week1, p_week2, p_week4, p_week8, p_week52, Other_Variables, cfa_week0_only_scaled))
 
 # GLM for marked Recovery (Factor 1 and 2 alone are significant but when consider other variables, only Factor 1 is sig)
 Factors_MR <- Factors_MR %>% mutate_if(is.character,as.factor)
@@ -899,6 +1019,10 @@ Factors_MR$SEXCD <- as.factor(Factors_MR$SEXCD)
 Factors_MR$AGE <- as.numeric(Factors_MR$AGE)
 Factors_MR$Marked_Recovery <- as.factor(Factors_MR$Marked_Recovery)
 Factors_MR$Factor1_w0_flipped <- Factors_MR$Factor1_w0+1
+Factors_MR_noNa <- subset(Factors_MR, !is.na(Marked_Recovery))
+Factors_MR_A_noNa <- subset(Factors_MR_noNa, ASIMPC01_A=="A")
+Factors_MR_surg <- merge(surg_vars, Factors_MR, by.x=c("ptid"), by.y=c("PTID"))
+
 
 glm_MR_factor1 <- glm(Marked_Recovery ~ Factor1_w0, data = Factors_MR, family = quasibinomial)
 summary(glm_MR_factor1)
@@ -925,7 +1049,7 @@ summary(glm_MR)
 glm_MR_2 <- glm(Marked_Recovery ~ Factor2_w0 +  AGE + SEXCD  + ASIMPC01_A + SPLVL1, data = Factors_MR, family = quasibinomial)
 summary(glm_MR_2)
 
-glm_MR_variables <- glm(Marked_Recovery ~ RBC00*HCT00*HGB00 + AGE + SEXCD  + ASIMPC01_A + SPLVL1, data = Factors_MR, family = quasibinomial)
+glm_MR_variables <- glm(Marked_Recovery ~ RBC00*HCT00*HGB00 + AGE + SEXCD  + ASIMPC01_A + SPLVL1, data = Factors_MR_scaled, family = quasibinomial)
 summary(glm_MR_variables)
 
 drop1(glm_MR_inj, test = "Chi")
@@ -945,6 +1069,19 @@ summary(glm_MR_D)
 
 anova(glm_MR_reduced, glm_MR, test = "Chisq")
 
+#Prediction values of glm: 
+glm_MR_probs <- predict(glm_MR, type="response")
+summary(glm_MR_probs) #pick the mean?
+glm_MR_pred <- ifelse(glm_MR_probs>0.13, 1, 0) 
+table(glm_MR_pred, Factors_MR_noNa$Marked_Recovery)
+mean(glm_MR_pred == Factors_MR_noNa$Marked_Recovery)
+
+#Prediction values of glm based on AIS-A alone: 
+glm_MR_A_probs <- predict(glm_MR_A, type="response")
+glm_MR_A_pred <- ifelse(glm_MR_A_probs>0.14, 1, 0)
+table(glm_MR_A_pred, Factors_MR_A_noNa$Marked_Recovery)
+mean(glm_MR_A_pred == Factors_MR_A_noNa$Marked_Recovery)
+
 #test for dispersion 
 #One way to see if model is overdispersed is looking at Residual Deviance : degrees of freedom
 # more than 1 -> Overdispersion
@@ -952,9 +1089,8 @@ library(msme)
 P__disp(glm_MR)
 
 #Ctree
-Factors_MR <- subset(Factors_MR, !is.na(Marked_Recovery))
 
-UCP_MR <- ctree(Marked_Recovery ~ Factor1_w0 + SPLVL1 + AGE + ASIMPC01_A, data = Factors_MR)
+UCP_MR <- ctree(Marked_Recovery ~ Factor1_w0 + SPLVL1 + AGE + ASIMPC01_A, data = subset(Factors_MR, !is.na(Marked_Recovery)))
 plot(UCP_MR)
 
 #Model diagnostics - Test for linearity and multicollinearity 
@@ -964,16 +1100,18 @@ vif(glm_MR)
 library(boot)
 glm.diag.plots (glm_MR)
 
-
+# ROC for Marked Recovery 
 library(pROC) #Only works with numeric or ordered factors so if it is factors, have to order it
 Factors_MR$Ordered_ASIMPC01_A <- factor(Factors_MR$ASIMPC01_A, levels=c("A", "B", "C", "D"), ordered=TRUE)
 Factors_MR$Ordered_SPLVL1 <- factor(Factors_MR$SPLVL1, levels=c("T", "C"), ordered= TRUE)
 Factors_MR$Ordered_SEXCD <- factor(Factors_MR$SEXCD, levels=c("1", "2"), ordered= TRUE)
-Factors_MR$Ordered_Factor1_w0 <- factor(Factors_MR$Factor1_w0, ordered = TRUE)
+Factors_MR$Ordered_Factor1_w0 <- factor(Factors_MR$Factor1_w0_flipped, ordered = TRUE)
+Factors_MR$Ordered_Factor2_w0 <- factor(Factors_MR$Factor2_w0, ordered = TRUE)
+
 AUC = roc(Marked_Recovery ~ Factor1_w0 + Ordered_ASIMPC01_A + Ordered_SPLVL1 + AGE + Ordered_SEXCD, data=Factors_MR, plot = TRUE, percent = TRUE, ci = TRUE) 
 
-F1 = roc(Marked_Recovery ~ Ordered_Factor1_w0, data=Factors_MR) 
-plot(F1, col="red", main = "ROC for Factor 1 (Anemia)")
+F1 = roc(Marked_Recovery ~ Ordered_Factor1_w0, data=Factors_MR)  
+plot(F1, col="red", main = "ROC for Factor 1 (Blood)")
 
 F2 = roc(Marked_Recovery ~ Ordered_ASIMPC01_A, data=Factors_MR) 
 plot(F2, col="red", main = "ROC for AIS grades")
@@ -998,6 +1136,20 @@ legend(0, 0.5, legend = c("Factor 1 (Anemia) = 63%", "AIS grades = 82%", "Spinal
                            "Age = 52%", "Sex = 49%"), title = "Area Under the Curves", cex = 0.8,
        box.lty = 0)
 
+roc_A = roc(Marked_Recovery ~ Ordered_Factor1_w0, data=subset(Factors_MR, ASIMPC01_A=="A"), smooth=TRUE)  
+roc_B = roc(Marked_Recovery ~ Ordered_Factor1_w0, data=subset(Factors_MR, ASIMPC01_A=="B"), smooth=TRUE)  
+roc_C = roc(Marked_Recovery ~ Ordered_Factor1_w0, data=subset(Factors_MR, ASIMPC01_A=="C"), smooth=TRUE)  
+roc_D = roc(Marked_Recovery ~ Ordered_Factor1_w0, data=subset(Factors_MR, ASIMPC01_A=="D"))  
+
+plot(roc_A, main = "ROC of Factor 1 in each AIS grades", col="snow4", type="l", pch = 19, lty = 5)
+lines(roc_B, type="l", col = "burlywood4", pch = 16, lty = 2)
+lines(roc_C, type = "l", col = "orangered2", pch = 17, lty = 1)
+lines(roc_D, col = "tan3", type ="l", pch = 18, lty = 3)
+legend(0.37,0.5, legend=c("AIS A", "AIS B", "AIS C", "AIS D"),
+       lty = c(5,2,1,3),col = c("snow4", "burlywood4", "orangered2", "tan3"), 
+      title = "Line Types", cex =0.8, box.lty = 0)
+
+
 #R^2 for logistics! -> applicable for binomial family! -> change family to binomial
 library(pscl) #look for McFadden R^2 scores, ranges from 0-1, closer to 0: no predictive power
 pR2(glm_MR)
@@ -1020,9 +1172,10 @@ library(sjPlot)
 sjp.glm(glm_MR)
 
 #Turn estimates in glm output in odds ratio
-exp(cbind(Odds=coef(glm_MR), confint(glm_MR)))
+cbind(Odds=exp(coef(glm_MR)), exp(confint(glm_MR)),p=summary(glm_MR)$coefficients[,4])
 
-exp(cbind(Odds=coef(glm_MR_variables), confint(glm_MR_variables)))
+Variables_glm <- cbind(Odds=exp(coef(glm_MR_variables)), exp(confint(glm_MR_variables)), p=summary(glm_MR_variables)$coefficients[,4])
+stargazer(Variables_glm, type = "text")
 
 plot(glm_MR)
 
@@ -1156,12 +1309,13 @@ Other_with_RBC_drug <- merge(Other_Variables, RBC_drugs, by.x=c("PTID"), by.y=c(
 Factors_Overtime_RBC_drugs <- do.call("cbind", list(MS52_raw, MS00_raw, p_week0, p_week1, p_week2, p_week4, p_week8, p_week52, Other_with_RBC_drug, Anemia, RBC, Death))
 Factors_Overtime_RBC_drugs <- Factors_Overtime_RBC_drugs %>% mutate_if(is.character,as.factor)
 Factors_Overtime_RBC_drugs$SEXCD <- as.factor(Factors_Overtime_RBC_drugs$SEXCD)
+Factors_Overtime_RBC_drugs$Factor1_w0_flipped <- Factors_Overtime_RBC_drugs$Factor1_w0+1
 
 lm_RBC_drugs <- lm(TLAMS52 ~ RBC_Drug, data = Factors_Overtime_RBC_drugs)
-lm_factor1 <- lm(TLAMS52 ~ Factor1_w0 + AGE + SPLVL1 + ASIMPC01_A + RBC_Drug + SEXCD, data = Factors_Overtime_RBC_drugs)
-lm_reduced_factor1 <- lm(TLAMS52 ~ Factor1_w0 + AGE + SPLVL1 + ASIMPC01_A + RBC_Drug, data = Factors_Overtime_RBC_drugs)
-lm_RBC_factor1 <- lm(TLAMS52 ~ Factor1_w0 + RBC_Drug, data = Factors_Overtime_RBC_drugs)
-anova(lm_reduced_factor1, lm_factor1, test = "Chisq")
+lm_factor1 <- lm(TLAMS52 ~ Factor1_w0_flipped + AGE + SPLVL1 + ASIMPC01_A + RBC_Drug + SEXCD, data = Factors_Overtime_RBC_drugs)
+lm_reduced_factor1 <- lm(TLAMS52 ~ Factor1_w0_flipped + AGE + SPLVL1 + ASIMPC01_A + RBC_Drug, data = Factors_Overtime_RBC_drugs)
+lm_RBC_factor1 <- lm(TLAMS52 ~ Factor1_w0_flipped + RBC_Drug, data = Factors_Overtime_RBC_drugs)
+anova(lm_RBC_factor1, lm_factor1, test = "Chisq")
 
 summary(lm_RBC_drugs)
 summary(lm_factor1)
@@ -1222,6 +1376,15 @@ Factor_exclude_MS5 <- ggplot(data = subset(Factors_MR, TLAMS00 <= 5 &!is.na(Mark
   facet_grid(SPLVL1 ~ ASIMPC01_A, scales = "free_x")
   
 multiplot(Factor_vs_MR, Factor_exclude_MS5)
+
+#Factor 1 vs MS
+ggplot(data = subset(Factors_Overtime_Anemia, !is.na(Severity)),aes(x=TLAMS52, y=Factor1_w0_flipped))+
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE) +
+  theme_bw() +
+  ggtitle("Blood factor across severities in LEMS 52") +
+  facet_grid(. ~ Severity, scales = "free_x")
+
 
 #Comparing C's between Marked Recovery of Factor 1
 MR <- c("Factor1_w0", "Marked_Recovery", "ASIMPC01_A", "TLAMS00")
@@ -1299,6 +1462,9 @@ Factors_Overtime_Death_Sur$SPLVL1_numeric <- as.factor(Factors_Overtime_Death_Su
 
 Factors_Overtime_Death_Sur$Factor3_w0_flipped <- Factors_Overtime_Death_Sur$Factor3_w0+1
 Factors_Overtime_Death_Sur$Factor4_w0_flipped <- Factors_Overtime_Death_Sur$Factor4_w0+1
+
+Factors_Overtime_Death_Sur$Age_binary <- ifelse(Factors_Overtime_Death_Sur$AGE <= 50, 0, 1)
+Factors_Overtime_Death_Sur$Age_binary <- as.factor(Factors_Overtime_Death_Sur$Age_binary)  
 
 library(survival)
 
@@ -1383,14 +1549,15 @@ summary(Hazard_Variables_Factor3)
 Hazard_Variables_Factor4 <- coxph(Surv(Survival_days, Survival_Rates==0)~ BUN00*BC900*BUA00*P0400 + AGE + SEXCD + SPLVL1 + ASIMPC01_A, data = Factors_Overtime_Death_Sur)
 summary(Hazard_Variables_Factor4)
 
+Hazard_Factor3_age <- coxph(Surv(Survival_days, Survival_Rates==0)~ Factor3_w0_flipped + Age_binary, data = Factors_Overtime_Death_Sur)
+summary(Hazard_Factor3_age)
+
 #37 out of 47 dead patients have AIS-A
 Hazard_Factor3_A <- coxph(Surv(Survival_days, Survival_Rates==0)~ Factor3_w0_flipped + AGE + SEXCD + SPLVL1, subset = ASIMPC01_A == "A", data = Factors_Overtime_Death_Sur)
 Hazard_Factor4_A <- coxph(Surv(Survival_days, Survival_Rates==0)~ Factor4_w0_flipped + AGE + SEXCD + SPLVL1, subset = ASIMPC01_A == "A", data = Factors_Overtime_Death_Sur)
 
 summary(Hazard_Factor3_A)
 summary(Hazard_Factor4_A)
-
-
 
 library(survminer)
 ggforest(Hazard_Factor3, data = Factors_Overtime_Death_Sur)
@@ -1477,6 +1644,12 @@ Converted_Wei_Variables3 <- ConvertWeibull(Wei_Variables_Factor3, conf.level = 0
 
 Wei_Variables_Factor4 <- survreg(Surv(Survival_days, Survival_Rates == 0) ~ BUN00*BC900*BUA00*P0400 + AGE + SEXCD + SPLVL1 + ASIMPC01_A, dist = "weibull", data = Factors_Overtime_Death_Sur)
 Converted_Wei_Variables4 <- ConvertWeibull(Wei_Variables_Factor4, conf.level = 0.95)
+
+Wei_Factor3_A <- survreg(Surv(Survival_days, Survival_Rates==0)~ Factor3_w0_flipped + AGE + SEXCD + SPLVL1, subset = ASIMPC01_A == "A",dist = "weibull", data = Factors_Overtime_Death_Sur)
+Converted_Wei_Factor3_A <- ConvertWeibull(Wei_Factor3_A, conf.level = 0.95)
+
+Wei_Factor4_A <- survreg(Surv(Survival_days, Survival_Rates==0)~ Factor4_w0_flipped + AGE + SEXCD + SPLVL1, subset = ASIMPC01_A == "A",dist = "weibull", data = Factors_Overtime_Death_Sur)
+Converted_Wei_Factor4_A <- ConvertWeibull(Wei_Factor4_A, conf.level = 0.95)
 
 
 Wei_Factor<- WeibullReg(Surv(Survival_days, Survival_Rates == 0) ~ Factor3_w0 + AGE + SEXCD + SPLVL1 + ASIMPC01_A, data = Factors_Overtime_Death_Sur) #Same as above
@@ -1689,3 +1862,412 @@ Cor_cfa_52 <- cor(cfa_week52, use="pairwise.complete.obs")
 Cor_cfa_52 <- as.matrix(Cor_cfa_52)
 corrplot(Cor_cfa_52, method = "color", type = "upper", order = "hclust",
          addCoef.col = "black", number.cex=0.35)
+
+RBC_cor <- as.matrix(cor(RBC, use="pairwise.complete.obs"))
+colnames(RBC_cor) <- c("Red Blood Cells", "Hematocrit", "Hemoglobin")
+rownames(RBC_cor) <- c("Red Blood Cells", "Hematocrit", "Hemoglobin")
+corrplot(RBC_cor, method = "color", type = "upper", order = "hclust")
+
+RBC_corplot <- ggplot(Factors_Overtime_Anemia_scaled, aes(x=TLAMS52, y=RBC00))+
+  geom_point() +
+  geom_smooth(method = "lm") +
+  annotate("text", x=15, y=5, label="r = 0.2, p < 0.05", colour = "red") +
+  theme_bw() +
+  xlab("LEMS at Week 52") +
+  ylab("Red Blood Cells Count") + 
+  ggtitle("Red Blood Cells Count")
+
+ggplot(data=subset(Factors_Overtime_Anemia, !is.na(ASIMPC01_A)),aes(x=TLAMS52, y=RBC00))+
+  geom_point() +
+  geom_smooth(method = "lm") +
+  theme_bw() +
+  xlab("LEMS at Week 52") +
+  ylab("Red Blood Cells Count") + 
+  ggtitle("Red Blood Cells Count Stratified") +
+  facet_grid(. ~ ASIMPC01_A, scale = "free_x")
+
+HCT_corplot <- ggplot(Factors_Overtime_Anemia, aes(x=TLAMS52, y=HCT00))+
+  geom_point() +
+  geom_smooth(method = "lm") +
+  annotate("text", x=18, y=5, label="r = 0.21, p < 0.05", colour = "red") +
+  theme_bw() +
+  xlab("LEMS at Week 52") +
+  ylab("Hematocrit") + 
+  ggtitle("Hematocrit")
+
+ggplot(data=subset(Factors_Overtime_Anemia_scaled, !is.na(ASIMPC01_A)),aes(x=TLAMS52, y=HCT00))+
+  geom_point() +
+  geom_smooth(method = "lm") +
+  theme_bw() +
+  xlab("LEMS at Week 52") +
+  ylab("Hematocrit") + 
+  ggtitle("Hematocrit Stratified") +
+  facet_grid(. ~ ASIMPC01_A, scale = "free_x")
+
+HGB_corplot <- ggplot(Factors_Overtime_Anemia_scaled, aes(x=TLAMS52, y=HGB00))+
+  geom_point() +
+  geom_smooth(method = "lm") +
+  annotate("text", x=18, y=5, label="r = 0.21, p < 0.05", colour = "red") +
+  theme_bw() +
+  xlab("LEMS at Week 52") +
+  ylab("Hemoglobin") + 
+  ggtitle("Hemoglobin")
+
+ggplot(data=subset(Factors_Overtime_Anemia_scaled, !is.na(ASIMPC01_A)),aes(x=TLAMS52, y=HGB00))+
+  geom_point() +
+  geom_smooth(method = "lm") +
+  theme_bw() +
+  xlab("LEMS at Week 52") +
+  ylab("Hemoglobin") + 
+  ggtitle("Hemoglobin Stratified") +
+  facet_grid(. ~ ASIMPC01_A, scale = "free_x")
+
+Factor1_corplot <- ggplot(Factors_Overtime_Anemia, aes(x=TLAMS52, y=Factor1_w0_flipped))+
+  geom_point() +
+  geom_smooth(method = "lm") +
+  annotate("text", x=18, y=5, label="r = 0.22, p < 0.05", colour = "red") +
+  theme_bw() +
+  xlab("LEMS at Week 52") +
+  ylab("Factor 1 (Blood)") + 
+  ggtitle("Factor 1 (Blood)")
+
+multiplot(RBC_corplot, HCT_corplot, HGB_corplot, Factor1_corplot, cols = 2)
+
+#Clustering of AIS grades
+#Using k-means methods
+clust = Factors_Overtime_Anemia[,c("ASIMPC01_A","HGB00","HCT00","RBC00")]
+clust<-clust[complete.cases(clust),]
+
+clus2 <- clust
+clus2$ASIMPC01_A <- NULL
+cluster = kmeans(clus2, 4)
+
+plot(clus2, col = (cluster$cluster+1), pch=20, cex=2)
+
+table(clust$ASIMPC01_A, cluster$cluster)
+
+#using k-means methods
+pam.result <- pam(clus2, 4)
+table(pam.result$clustering, clust$ASIMPC01_A)
+plot(pam.result)
+
+plot(clust[c("HGB00", "TLAMS52")], col = cluster$cluster)
+points(cluster$centers[, c("HGB00", "TLAMS52")],
+       col = 1:3, pch = 8, cex = 2)
+
+ggplot(data=subset(Factors_Overtime_Anemia, !is.na(ASIMPC01_A)), aes(x=TLAMS52, y=HGB00, colour=ASIMPC01_A))+
+  geom_boxplot()+
+  geom_jitter(width=0.2) +
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+  
+
+describeBy(Factors_Overtime_Anemia$HGB00, Factors_Overtime_Anemia$ASIMPC01_A)
+
+#try multiple factor analysis
+library(FactoMineR)
+library(factoextra)
+
+mfa <- MFA(clust, group = c(1,3),
+           type = c("n", "s"),
+           name.group = c("AIS", "Blood"),
+           graph = FALSE)
+fviz_mfa_var(mfa, "group")
+
+fviz_ellipses(mfa, c("ASIMPC01_A"), repel = TRUE)
+
+#try linear discriminant analysis 
+library(MASS)
+lda <- lda(ASIMPC01_A ~ RBC00+HCT00+HGB00, data=clust)
+plot(lda, col = as.integer(clust$ASIMPC01_A))
+
+lda.pred <- predict(lda)
+clust$lda <- lda.pred$class
+
+table(clust$lda, clust$ASIMPC01_A)
+
+library(klaR)
+partimat(ASIMPC01_A ~ HCT00+HGB00, data=clust, method="qda")
+
+#Changing to time format 
+surgical$ctsp_moment <- as.POSIXct(surgical$ctsp_moment, format='%Y/%m/%d %H:%M')
+surgical$ctst_moment <- as.POSIXct(surgical$ctst_moment, format='%Y/%m/%d %H:%M')
+surgical$otsp_moment <- as.POSIXct(surgical$otsp_moment, format='%Y/%m/%d %H:%M')
+surgical$otst_moment <- as.POSIXct(surgical$otst_moment, format='%Y/%m/%d %H:%M')
+surgical$pasp_moment <- as.POSIXct(surgical$pasp_moment, format='%Y/%m/%d %H:%M')
+surgical$past_moment <- as.POSIXct(surgical$past_moment, format='%Y/%m/%d %H:%M')
+surgical$surgdt_update <- as.POSIXct(surgical$surgdt_update, format='%Y/%m/%d')
+surgical$emc_moment <- as.POSIXct(surgical$emc_moment, format='%Y/%m/%d %H:%M')
+surgical$aracut_moment <- as.POSIXct(surgical$aracut_moment, format='%Y/%m/%d %H:%M')
+surgical$diacut_moment <- as.POSIXct(surgical$diacut_moment, format='%Y/%m/%d %H:%M')
+surgical$mpsssp_moment <- as.POSIXct(surgical$mpsssp_moment, format='%Y/%m/%d %H:%M')
+surgical$mpssst_moment <- as.POSIXct(surgical$mpssst_moment, format='%Y/%m/%d %H:%M')
+
+ID_MS <- c("TLAMS52", "PTID")
+ID_MS <- Factors_Overtime_Anemia[ID_MS]
+
+surgical$cts_duration <- difftime(surgical$ctsp_moment, surgical$ctst_moment,units="hours")
+surgical$cts_duration <- as.numeric(surgical$cts_duration)
+surgical$cts_duration[surgical$cts_duration<0] = NA
+
+surgical$ots_duration <- difftime(surgical$otsp_moment, surgical$otst_moment, units="hours")
+surgical$ots_duration <- as.numeric(surgical$ots_duration)
+surgical$ots_duration[surgical$ots_duration<0] = NA
+
+surgical$pas_duration <- difftime(surgical$pasp_moment, surgical$past_moment, units="hours")
+surgical$pas_duration <- as.numeric(surgical$pas_duration)
+surgical$pas_duration[surgical$pas_duration<0] = NA
+
+surgical$emc_acute_duration <- difftime(surgical$aracut_moment, surgical$emc_moment, units="hours")
+surgical$emc_acute_duration <- as.numeric(surgical$emc_acute_duration)
+surgical$emc_acute_duration[surgical$emc_acute_duration<0] = NA
+
+surgical$acute_duration <- difftime(surgical$diacut_moment, surgical$aracut_moment, units="hours")
+surgical$acute_duration <- round(as.numeric(surgical$acute_duration), digits=0)
+surgical$acute_duration[surgical$acute_duration<0] = NA
+
+surgical$mpss_duration <- difftime(surgical$mpsssp_moment, surgical$mpssst_moment, units="hours")
+surgical$mpss_duration <- as.numeric(surgical$mpss_duration)
+surgical$mpss_duration[surgical$mpss_duration<0] = NA
+
+surgical$wait_duration <- difftime(surgical$aracut_moment, surgical$emc_moment, units="hours")
+surgical$wait_duration <- as.numeric(surgical$wait_duration)
+surgical$wait_duration[surgical$wait_duration<0] = NA
+
+surgical_MS <- merge(surgical, ID_MS, by.x=c("ptid"), by.y=c("PTID"))
+surgical_MS <- merge(surgical_MS, etio, by.x=c("ptid"), by.y=c("ptid"))
+
+surgical_MS_noNa <- surgical_MS[complete.cases(surgical_MS[ , 118:122, 85]),]
+
+surgical_MS$inj_comb <- rowSums(surgical_MS[,c("cardcd01", "cpulcd01", "eentcd01", 
+                                               "gastcd01", "genicd01", "headcd01" , 
+                                               "musccd01", "pulmcd01", "skincd01")])
+
+surgical_MS$polytrauma <- ifelse(surgical_MS$inj_comb < 3, "0", "1")
+
+surg_vars <- c("ptid", "acute_duration", "polytrauma", "inj_update")
+surg_vars <- surgical_MS[surg_vars]
+
+surg_other <- lm(TLAMS52 ~ bpsys3 + bpdia3 + heart3 + resprt3 + tempc3 + acute_duration + wait_duration + polytrauma, data=surgical_MS)
+backward(surg_other)
+
+surg <- lm(TLAMS52 ~ bpsys3 + heart3 + acute_duration, data = surgical_MS_noNa)
+
+anova(surg, surg_other)
+
+#Transform into long format in Factors data to see the trajectory of Factor 1
+library(reshape)
+Factors_Overtime_long <- melt(Factors_MR, id.vars=c("TLAMS52", "PTID", "SEXCD", "AGE", "ASIMPC01_A", "Marked_Recovery", "SPLVL1"),
+                         measure.vars=c("Factor1_w0", "Factor1_w1", "Factor1_w2", "Factor1_w4", "Factor1_w8", "Factor1_w52",
+                                        "Factor2_w0", "Factor2_w1", "Factor2_w2", "Factor2_w4", "Factor2_w8", "Factor2_w52",
+                                        "Factor3_w0", "Factor3_w1", "Factor3_w2", "Factor3_w4", "Factor3_w8", "Factor3_w52",
+                                        "Factor4_w0", "Factor4_w1", "Factor4_w2", "Factor4_w4", "Factor4_w8", "Factor4_w52",
+                                        "Factor5_w0", "Factor5_w1", "Factor5_w2", "Factor5_w4", "Factor5_w8", "Factor5_w52",
+                                        "Factor6_w0", "Factor6_w1", "Factor6_w2", "Factor6_w4", "Factor6_w8", "Factor6_w52"),
+                         variable.name ="Time After Injury", 
+                         value.name ="Factors")
+
+#Splitting into 2 separate columns
+library(tidyr)
+Factors_Overtime_long <- separate(data = Factors_Overtime_long, col = variable, 
+                             into = c("Factors", "TimeAfterInjury"), sep = "\\_")
+
+Factors_Overtime_long$TimeAfterInjury = factor(Factors_Overtime_long$TimeAfterInjury, levels=c('w0','w1','w2','w4','w8','w52'))
+Factors_Overtime_long$TimeAfterInjury_numeric <- gsub("w", "", Factors_Overtime_long$TimeAfterInjury)
+Factors_Overtime_long$TimeAfterInjury_numeric <- as.numeric(Factors_Overtime_long$TimeAfterInjury_numeric)
+Factors_Overtime_long$TimeAfterInjury_numeric_scaled <- scale(Factors_Overtime_long$TimeAfterInjury_numeric)
+
+Factors_Overtime_long_noW2 <- subset(Factors_Overtime_long, TimeAfterInjury_numeric!="8" & TimeAfterInjury_numeric!="52")
+#Factor 1 changes over time for each patient
+xyplot(value~TimeAfterInjury|PTID, col.line = "red", layout = c(9,5), ylim=c(-2,2),
+       grid = TRUE, type = c("p", "r"), data = subset(Factors_Overtime_long_noW2, Factors=="Factor1"))
+
+#For the error term, anything that is to the right of "|" denotes grouping variable (error term)
+# anything that is to the left of "|" denotes term varies between groups (1:random intercept, +X: random slope)
+Factor_time <- lmer(value ~ TimeAfterInjury_numeric+ (1+TimeAfterInjury_numeric|PTID), REML = FALSE,
+            data = subset(Factors_Overtime_long_noW2,
+                          Factors=="Factor2"))
+
+summary(Factor_time)
+coefs_factor <- coef(Factor_time)$PTID[1:2]
+colnames(coefs_factor) <- c("intercept", "slope")
+library(data.table)
+setDT(coefs_factor, keep.rownames = TRUE)[]
+colnames(coefs_factor)[colnames(coefs_factor)=="rn"] <- "PTID"
+
+Factors_Overtime_coefs <- merge(coefs_both, Factors_MR, all=TRUE)
+Factors_Overtime_coefs_update <- merge(Factors_Overtime_coefs, MS_only, by="PTID")
+Factors_Overtime_coefs_update$Marked_Recovery <- as.factor(Factors_Overtime_coefs_update$Marked_Recovery)
+
+
+ggplot(data=coefs_factor, aes(x=slope, y=intercept))+
+  geom_point()+
+  geom_smooth(method="lm", se=FALSE)
+
+#Factor 1 alone is not significant over time
+ggplot(data=subset(Factors_Overtime_long_noW2, !is.na(ASIMPC01_A)), aes(x=TimeAfterInjury, y=value))+
+  geom_point(aes(group=PTID))+
+  geom_line(aes(group=PTID))+
+  facet_grid(.~ASIMPC01_A)
+
+plot(Effect(c("TimeAfterInjury_numeric","ASIMPC01_A"),Factor_time))
+
+plot(Factor_time)
+abline(h=0,lwd=2)
+
+qqnorm(resid(Factor_time))
+qqline(resid(Factor_time))
+
+qqnorm(ranef(Factor_time)$PTID[,1])
+qqline(ranef(Factor_time)$PTID[,1])
+
+#The first 50
+Factors_50 <- head(Factors_MR, 50)
+Factors_50_long <- reshape(Factors_50, varying = c("Factor1_w0", "Factor1_w1", "Factor1_w2","Factor1_w4", "Factor1_w8", "Factor1_w52"),
+                                    v.names = "Factors", timevar = "TimeAfterInjury", times = c("w0", "w1","w2", "w4", "w8", "w52"), direction = "long")
+
+Factors_50_long$TimeAfterInjury = factor(Factors_50_long$TimeAfterInjury, levels=c('w0','w1','w2','w4','w8','w52'))
+Factors_50_long$TimeAfterInjury_numeric <- gsub("w", "", Factors_50_long$TimeAfterInjury)
+Factors_50_long$TimeAfterInjury_numeric <- as.numeric(Factors_50_long$TimeAfterInjury_numeric)
+Factors_50_long$TimeAfterInjury_numeric_scaled <- scale(Factors_50_long$TimeAfterInjury_numeric)
+
+
+plot(ctree(Marked_Recovery ~ SPLVL1 + SEXCD + AGE + ASIMPC01_A + Factors, data = subset(Factors_Overtime_coefs_update, !is.na(Severity))))
+
+
+
+ggplot(data = subset(Factors_50_long, TimeAfterInjury!="w8"&TimeAfterInjury!="w52"), aes(x=TimeAfterInjury, y=Factors, group=PTID)) +
+  geom_point()+
+  geom_line()+
+  geom_smooth(method="lm",formula = y~poly(x,3, raw=TRUE), se=FALSE,colour="red")
+  
+  facet_grid(.~ASIMPC01_A, space="free")
+ 
+
+#Interacted with AIS grades, they are significant 
+ggplot(data=subset(Factors_Overtime_long_noW2, !is.na(ASIMPC01_A)), aes(x=TimeAfterInjury, y=value))+
+  geom_boxplot(aes(fill = ASIMPC01_A), width = 2)+
+  coord_cartesian(ylim=c(-2, 2)) +
+  scale_fill_manual(values = c("lightgoldenrod1", "darkgoldenrod", "paleturquoise", "paleturquoise4")) +
+  ggtitle("Factor 1 Values Over Time")+
+  theme_bw() +
+  theme(text = element_text(size = 12),
+        axis.text.x=element_blank(),
+        axis.title.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        strip.text = element_text(size = 12))+
+  facet_grid(.~TimeAfterInjury, scales="free_x")
+
+#Transform into long format for Motor scores trajectory  
+Factors_MS_Overtime <- do.call("cbind", list(MS00_raw, MS01_raw, MS04_raw, MS08_raw, MS16_raw, MS26_raw, MS52_raw, 
+                                             p_week0, p_week1, p_week2, p_week4, p_week8, p_week52, 
+                                             Other_Variables, cfa_week0_only))
+
+Factors_MS_Overtime_long <- reshape(Factors_MS_Overtime, varying = c("TLAMS00", "TLAMS01", "TLAMS04", "TLAMS08","TLAMS16","TLAMS26", "TLAMS52"),
+                                       v.names = "LEMS", timevar = "TimeAfterInjury", times = c("w0", "w1", "w4", "w8","w16", "w26","w52"), direction = "long")
+
+Factors_MS_Overtime_long$TimeAfterInjury = factor(Factors_MS_Overtime_long$TimeAfterInjury, levels=c('w0','w1','w4','w8','w16','w26','w52'))
+Factors_MS_Overtime_long$TimeAfterInjury_numeric <- gsub("w", "", Factors_MS_Overtime_long$TimeAfterInjury)
+Factors_MS_Overtime_long$TimeAfterInjury_numeric <- as.numeric(Factors_MS_Overtime_long$TimeAfterInjury_numeric)
+Factors_MS_Overtime_long$TimeAfterInjury_numeric_scaled <- scale(Factors_MS_Overtime_long$TimeAfterInjury_numeric)
+
+Factors_MS_Overtime_long_noW <- subset(Factors_MS_Overtime_long, TimeAfterInjury_numeric!="8" & TimeAfterInjury_numeric!="52" & TimeAfterInjury_numeric!="16" & TimeAfterInjury_numeric!="26")
+
+#Each individual 
+xyplot(LEMS~TimeAfterInjury|PTID, col.line = "red", layout = c(9,5),
+       grid = TRUE, type = c("p", "r"), data = Factors_MS_Overtime_long)
+
+MS_time <- lmer(LEMS ~ TimeAfterInjury_numeric+(1+TimeAfterInjury_numeric|PTID), REML=FALSE,
+                    data = Factors_MS_Overtime_long_noW)
+summary(MS_time)
+
+coefs_MS <- coef(MS_time)$PTID[1:2]
+colnames(coefs_MS) <- c("intercept", "slope")
+
+setDT(coefs_MS, keep.rownames = TRUE)[]
+colnames(coefs_MS)[colnames(coefs_MS)=="rn"] <- "PTID"
+
+
+ggplot(data=coefs_MS, aes(x=intercept, y=slope))+
+  geom_point()+
+  geom_smooth(method="lm", se=FALSE)
+
+# MS overtime alone is not sig
+ggplot(data=subset(Factors_MS_Overtime_long, !is.na(ASIMPC01_A)), aes(x=TimeAfterInjury, y=LEMS))+
+  geom_boxplot()
+
+# But it is when interacted with AIS grades
+ggplot(data=subset(Factors_MS_Overtime_long, !is.na(ASIMPC01_A)), aes(x=TimeAfterInjury, y=LEMS))+
+  geom_boxplot(aes(fill = ASIMPC01_A), width = 2)+
+  scale_fill_manual(values = c("lightgoldenrod1", "darkgoldenrod", "paleturquoise", "paleturquoise4")) +
+  ggtitle("MS Values Over Time")+
+  theme_bw() +
+  theme(text = element_text(size = 12),
+        axis.text.x=element_blank(),
+        axis.title.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        strip.text = element_text(size = 12))+
+  facet_grid(.~TimeAfterInjury, scales="free_x")
+
+coefs_both <- merge(coefs_factor, coefs_MS, all=TRUE, by="PTID")
+colnames(coefs_both) <- c("PTID", "intercept_Factor", "slope_Factor", 
+                           "intercept_MS", "slope_MS")
+
+
+ggplot(data=coefs_both, aes(x=intercept_Factor, y=slope_MS))+
+  geom_point()+
+  geom_smooth(method="lm", se=FALSE)
+
+
+ggplot(data=Factors_MS_Overtime_long, aes(x=TimeAfterInjury, y=LEMS, group=PTID))+
+  geom_point()+
+  geom_line()+
+  geom_smooth(aes(group = 1, colour = "Trendline"),method="loess",formula = y~x, se=FALSE)
+
+#Drugs?
+Drugs <- do.call("cbind", list(Other_Variables,MS00_raw, MS01_raw, MS04_raw, 
+                               MS08_raw, MS16_raw, MS26_raw, MS52_raw,
+                                cfa_week0_only, cfa_week1, cfa_week2, 
+                                cfa_week4, cfa_week8, cfa_week52))
+
+Anh_1 <- as.character(Anh_1$ptid)
+Drugs_1<-Drugs[Drugs$PTID %in% Anh_1,]
+
+
+
+Drug_long <-melt(Drugs, id.vars=c("PTID", "SEXCD", "AGE", "ASIMPC01_A","SPLVL1"),
+                                           measure.vars=c("HGB00", "HGB01", "HGB02",
+                                                          "HGB04", "HGB08","HGB52"))
+
+Drug_long$variable <- gsub("HGB", "w", Drug_long$variable)
+Drug_long$variable = factor(Drug_long$variable, levels=c('w00','w01','w02','w04','w08','w52'))
+setnames(Drug_long, c("variable","value"), c("Time", "Values"))
+Drug_long$Time_numeric <- gsub("w", "", Drug_long$Time)
+Drug_long$Time_numeric <- as.numeric(Drug_long$Time_numeric)
+Drug_long$Time_numeric_scaled <- scale(Drug_long$Time_numeric)
+
+
+Blood_lmer <-lmer(Values ~ Time_numeric_scaled+(1+Time_numeric_scaled|PTID), REML = FALSE,
+                    data = Drug_long)
+
+coefs_blood <- coef(Blood_lmer)$PTID[1:2]
+colnames(coefs_blood) <- c("intercept", "slope")
+
+setDT(coefs_blood, keep.rownames = TRUE)[]
+colnames(coefs_blood)[colnames(coefs_blood)=="rn"] <- "PTID"
+
+
+
+xyplot(value~variable|PTID, col.line = "red", layout = c(9,5),
+       grid = TRUE, type = c("p", "r"), data = Drug_long)
+
+
+
+ggplot(data = Drug_long, aes(x=Time, y=Values, group=PTID)) +
+  geom_point()+
+  geom_line()+
+  geom_smooth(aes(group = 1, colour = "Trendline"),method="lm",formula = y~poly(x,3), se=FALSE)
+
+
+
