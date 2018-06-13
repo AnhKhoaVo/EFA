@@ -940,10 +940,65 @@ summary(glm_walk_reduce)
 
 anova(glm_walk, glm_walk_reduce, test = "Chisq")
 
+#Predictive Model 
+#Split data in half to build predictive model
+sample_walk <- sample(seq(1, nrow(Factors_Walk)), replace=FALSE)
+training_walk <- Factors_Walk[sample_walk[1:647],]
+test_walk <-Factors_Walk[sample[548:nrow(Factors_Walk)],]
+
+
+glm_walk_training <- glm(Walk ~ Factor1_w0 + SEXCD + SPLVL1 + AGE + ASIMPC01_A, data = training_walk, family="binomial")
+predict_glm_walk <- predict(glm_walk_training, data=training_walk, newdata = test_walk, type="response")
+predict_glm_walk <- as.numeric(predict_glm_walk)
+
+walk_prediction <- ifelse(predict_glm_walk<.5, 0,1)
+
+#Table showing predicted vs actuals
+addmargins(table(walk_prediction, test_walk$Walk, dnn=c("actual", "predicted")))
+
+#Accuracy by dividing true positive + true negative over sum
+#This may overestimates because there is a dominant class -> calculate precision vs recall methods
+#Precision looks at the accuracy of the positive prediction. 
+#Recall is the ratio of positive instances that are correctly detected by the classifier
+
+walk_table <-table(walk_prediction, test_walk$Walk, dnn=c("actual", "predicted"))
+sum(diag(walk_table)) / sum(walk_table) #91% <- maybe overestimating
+
+precision <- function(matrix) {
+  # True positive
+  tp <- matrix[2, 2]
+  # false positive
+  fp <- matrix[1, 2]
+  return (tp / (tp + fp))
+}
+
+recall <- function(matrix) {
+  # true positive
+  tp <- matrix[2, 2]# false positive
+  fn <- matrix[2, 1]
+  return (tp / (tp + fn))
+}
+
+prec_walk <- precision(walk_table)
+rec_walk <- recall(walk_table)
+
+2 * ((prec_walk * rec_walk) / (prec_walk + rec_walk)) #=>83%
+
+
+test_walk$Ordered_Walk <- factor(test_walk$Walk, levels=c("0", "1"), ordered= TRUE)
+ROCpred <- roc(walk_val$Walk, walk_val$num_walk_prediction)
+plot(ROCpred)
+
+#ROC AUC vs PR AUC. if class imbalance, pick PR. if not, ROC.
+#Class imbalance: yes = More of one class of data than other class
+walk_val <- cbind(walk_prediction, test_walk)
+walk_val <- subset(walk_val, select=c("walk_prediction", "Walk"))
+walk_val$walk_prediction <- as.factor(walk_val$walk_prediction)
+walk_val$num_walk_prediction <- as.numeric(walk_val$walk_prediction)
+
+#URP for walk
 Factors_Walk_noNa <- subset(Factors_Walk, !is.na(Walk))
-
 UCP_walk <- ctree(Walk ~ Factor1_w0 + AGE + SEXCD + SPLVL1 + ASIMPC01_A, data = Factors_Walk_noNa)
-
 plot(UCP_walk)
 
 sjp.glm(glm_walk_reduce)
